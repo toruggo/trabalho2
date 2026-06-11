@@ -10,11 +10,24 @@ import glm
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 from shader_s import Shader
+import animation as anim
 import geometry
+import materials
+import matrizes
 import scene
 import state
 import input as inp
-import matrizes
+from scene_layout import (
+    EXTRA_LANTERN_POSITIONS,
+    FLYING_LANTERN_TRANSFORMS,
+    HANGING_LANTERN_ORIGIN_INDEX,
+    HANGING_LANTERN_TRANSFORMS,
+    INTERIOR_AABB_MAX,
+    INTERIOR_AABB_MIN,
+    MARKET_OBJECTS,
+    SAKURA_SCALE,
+    SAKURA_TRANSFORMS,
+)
 
 TEMPLE_DIR = "objects/temple"
 SKYBOX_DIR = "objects/sky_78_cubemap_2k"
@@ -24,270 +37,6 @@ SAKURA_DIR = "objects/sakura_tree"
 FLYING_LANTERN_DIR = "objects/flying_lantern"
 DRAGON_CANDLE_DIR = "objects/dragon_candle"
 HANGING_LANTERN_DIR = "objects/hanging_lantern"
-
-# (x, y, z, rotation_z_deg) in Blender (Z-up) world coordinates, from
-# object_transforms.md. Position is converted via matrizes.blender_to_scene_pos
-# and rotation_z maps directly onto a scene Y-rotation.
-SAKURA_TRANSFORMS = [
-    (-12.923817, -21.774605, 0.428387, -74.919853),
-    (-12.792014, -28.013264, 0.428387, -74.919853),
-    (8.428210, -35.833553, 0.428387, -74.919853),
-    (10.273447, -19.885433, 0.428387, -74.919853),
-    (6.934447, -41.676804, 0.428387, -243.459088),
-    (-8.442527, -31.440132, 0.428387, -129.741438),
-    (-11.023709, -34.164055, 0.428387, -243.459088),
-    (-7.797180, -39.225277, 0.428387, -299.590866),
-    (-13.301259, -39.351807, 0.428387, -351.736711),
-    (7.681329, -54.128819, 0.428387, -302.282671),
-    (-8.354659, -54.769199, 0.428387, -394.693601),
-    (-9.980225, -42.994835, 0.428387, -408.512248),
-    (-7.168436, -45.367279, 0.428387, -437.373568),
-    (-14.153975, -45.455151, 0.428387, -471.710076),
-    (10.668856, -39.655830, 0.428387, -383.674866),
-    (13.451356, -36.543823, 0.428387, -434.551935),
-    (14.622935, -40.754185, 0.428387, -435.724186),
-    (6.669085, -47.096527, 0.428387, -334.651648),
-    (8.047447, -58.522240, 0.428387, -358.947041),
-    (10.976396, -61.231518, 0.428387, -437.560551),
-    (12.074751, -55.263786, 0.428387, -437.560551),
-    (15.918995, -52.920628, 0.428387, -383.636344),
-    (15.150146, -59.181255, 0.428387, -383.636344),
-    (-13.992884, -58.210712, 0.428387, -394.693601),
-    (-9.562850, -59.418903, 0.428387, -325.652027),
-    (-3.778178, -62.311241, 0.428387, -312.761465),
-]
-SAKURA_SCALE = 8.482910
-
-# (x, y, z) in Blender (Z-up) world coordinates, from scene.json, for the
-# flying_lantern_solo / .001 / .002 / .003 objects. flying_lantern.obj was
-# exported pre-baked (geometry + rotation + scale of flying_lantern_solo
-# already applied), so the other instances reuse that same mesh shifted by
-# the position delta to flying_lantern_solo (rotation/scale match across all 4).
-FLYING_LANTERN_TRANSFORMS = [
-    (
-        -0.7945289015769958,
-        -35.838497161865234,
-        4.637933731079102,
-    ),  # flying_lantern_solo
-    (
-        2.002218723297119,
-        -33.08412551879883,
-        4.637933731079102,
-    ),  # flying_lantern_solo.001
-    (
-        -0.49790430068969727,
-        -28.973752975463867,
-        4.637933731079102,
-    ),  # flying_lantern_solo.002
-    (
-        2.150531053543091,
-        -25.541379928588867,
-        4.637933731079102,
-    ),  # flying_lantern_solo.003
-]
-
-# Additional flying-lantern positions, scattered around the temple exterior.
-# Unlike FLYING_LANTERN_TRANSFORMS above, these are already in our final
-# scene-space coordinates (captured live via the temporary camera-position
-# printout, key P in input.py) — no Blender->scene conversion needed.
-EXTRA_LANTERN_POSITIONS = [
-    (-1.44, -2.75, 68.06),
-    (-1.88, 0.10, 63.23),
-    (3.08, -3.24, 56.96),
-    (-0.86, 1.05, 52.77),
-    (13.32, -7.76, 56.76),
-    (8.36, -7.54, 59.23),
-    (1.80, -6.61, 68.67),
-    (-17.64, 5.51, 11.88),
-    (-32.84, 16.44, 4.38),
-    (-27.67, 11.94, -17.54),
-    (28.88, 10.30, -5.92),
-    (30.50, 25.84, -19.14),
-    (28.80, 2.53, -1.47),
-    (13.65, 1.31, 17.34),
-    (-20.20, 2.13, 18.46),
-    (-38.76, 14.10, 9.81),
-]
-
-# (x, y, z) in Blender (Z-up) world coordinates, from scene.json, for the
-# hanging_lantern / .001 / .002 objects. hanging_lantern.obj was exported
-# pre-baked as "o hanging_lantern.001" (geometry + rotation + scale already
-# applied), so the other instances reuse that same mesh shifted by the
-# position delta to hanging_lantern.001 (rotation/scale match across all 3).
-HANGING_LANTERN_TRANSFORMS = [
-    (-0.020896494388580322, 8.019309997558594, 11.573162078857422),  # hanging_lantern
-    (
-        1.5413868427276611,
-        11.697153091430664,
-        11.573162078857422,
-    ),  # hanging_lantern.001 (baked)
-    (1.18292236328125, 16.908143997192383, 11.573162078857422),  # hanging_lantern.002
-]
-HANGING_LANTERN_ORIGIN_INDEX = 1
-
-# World-space AABB marking the temple interior, hand-tuned with the debug
-# box tool (key M + arrows/J/L/I/K/U/O) to snugly fit the interior room
-# (floor to ceiling, wall to wall) — used to mask interior-only/exterior-only
-# lights (req 1 / req 2).
-INTERIOR_AABB_MIN = (-3.55, -2.81, -24.33)
-INTERIOR_AABB_MAX = (4.40, 1.43, 5.21)
-
-# Market stalls/props. Each mesh was exported pre-baked to one specific
-# scene.json instance's world transform ("baked": position, rotation_z_deg,
-# scale, all in Blender world coordinates). `targets` lists every instance
-# to place using that mesh; matrizes.place_baked_instance() compensates for
-# any Y-rotation / uniform-scale difference between `baked` and each target.
-MARKET_OBJECTS = [
-    dict(
-        dir="objects/fish_tent",
-        file="fish_tent.obj",
-        materials=scene.FISH_TENT_MATERIALS,
-        baked=(
-            (5.467783451080322, -27.850482940673828, 1.637453317642212),
-            0.0,
-            0.0005368956481106579,
-        ),
-        targets=[
-            (
-                (5.467783451080322, -27.850482940673828, 1.637453317642212),
-                0.0,
-                0.0005368956481106579,
-            ),  # fish_tent_a/b
-            (
-                (5.11183500289917, -38.65605926513672, 1.637453317642212),
-                0.0,
-                0.0005368956481106579,
-            ),  # fish_tent_a/b.001
-        ],
-    ),
-    dict(
-        dir="objects/flag1",
-        file="flag1.obj",
-        materials=scene.FLAG1_MATERIALS,
-        baked=(
-            (4.405760288238525, -31.69893455505371, 3.0643084049224854),
-            90.0,
-            0.0003897630958817899,
-        ),
-        targets=[
-            (
-                (4.405760288238525, -31.69893455505371, 3.0643084049224854),
-                90.0,
-                0.0003897630958817899,
-            ),  # flag1
-            (
-                (-1.8033266067504883, -24.106781005859375, 3.0643084049224854),
-                90.0,
-                0.0003897630958817899,
-            ),  # flag1.001
-        ],
-    ),
-    dict(
-        dir="objects/food_tent",
-        file="food_tent.obj",
-        materials=scene.FOOD_TENT_MATERIALS,
-        baked=(
-            (5.220168113708496, -25.36267852783203, 1.0445088148117065),
-            0.0,
-            0.0004688884655479342,
-        ),
-        targets=[
-            (
-                (5.220168113708496, -25.36267852783203, 1.0445088148117065),
-                0.0,
-                0.0004688884655479342,
-            ),  # food_tent_1
-            (
-                (4.814486026763916, -36.064910888671875, 1.2097200155258179),
-                0.0,
-                0.0004084281390532851,
-            ),  # food_tent_0
-        ],
-    ),
-    dict(
-        dir="objects/meat_tent",
-        file="meat_tent.obj",
-        materials=scene.MEAT_TENT_MATERIALS,
-        baked=(
-            (-3.5610203742980957, -32.09426498413086, 1.0506778955459595),
-            0.0,
-            0.00042814877815544605,
-        ),
-        targets=[
-            (
-                (-3.5610203742980957, -32.09426498413086, 1.0506778955459595),
-                0.0,
-                0.00042814877815544605,
-            ),  # meat_tent_b
-        ],
-    ),
-    dict(
-        dir="objects/spice_tent",
-        file="spice_tent.obj",
-        materials=scene.SPICE_TENT_MATERIALS,
-        baked=(
-            (-3.36627197265625, -26.63774299621582, 1.6107171773910522),
-            -180.0,
-            0.6224765777587891,
-        ),
-        targets=[
-            (
-                (-3.36627197265625, -26.63774299621582, 1.6107171773910522),
-                -180.0,
-                0.6224765777587891,
-            ),  # spice_tent
-            (
-                (-3.457801580429077, -38.71965408325195, 1.6107171773910522),
-                -180.0,
-                0.6224765777587891,
-            ),  # spice_tent.001
-        ],
-    ),
-    dict(
-        dir="objects/standing_umbrella",
-        file="standing_umbrella.obj",
-        materials=scene.STANDING_UMBRELLA_MATERIALS,
-        baked=(
-            (9.14824104309082, -26.97772216796875, 2.304640531539917),
-            0.0,
-            0.00038976300857029855,
-        ),
-        targets=[
-            (
-                (9.14824104309082, -26.97772216796875, 2.304640531539917),
-                0.0,
-                0.00038976300857029855,
-            ),  # standing_umbrella
-            (
-                (13.54757022857666, -23.269926071166992, 2.304640531539917),
-                0.0,
-                0.00038976300857029855,
-            ),  # standing_umbrella.001
-        ],
-    ),
-    dict(
-        dir="objects/tables",
-        file="tables.obj",
-        materials=scene.TABLES_MATERIALS,
-        baked=(
-            (13.589741706848145, -25.852642059326172, 0.8880937099456787),
-            180.0,
-            0.00047512794844806194,
-        ),
-        targets=[
-            (
-                (13.589741706848145, -25.852642059326172, 0.8880937099456787),
-                180.0,
-                0.00047512794844806194,
-            ),  # tables.001
-            (
-                (9.4158296585083, -24.77208709716797, 0.8880937099456787),
-                0.0,
-                0.0004751279775518924,
-            ),  # tables
-        ],
-    ),
-]
 
 # Unit cube — 36 positions that serve as cubemap direction vectors.
 SKYBOX_VERTS = np.array(
@@ -525,7 +274,7 @@ def main():
         GRASS_DIR,
         "grass_field.obj",
         pos=grass_pos,
-        materials=scene.GRASS_MATERIALS,
+        materials=materials.GRASS_MATERIALS,
         recenter=False,
     )
 
@@ -539,7 +288,7 @@ def main():
         WALL_DIR,
         "wall.obj",
         pos=wall_pos,
-        materials=scene.WALL_MATERIALS,
+        materials=materials.WALL_MATERIALS,
         recenter=False,
     )
 
@@ -561,7 +310,7 @@ def main():
     sakura_objects = scene.load_simple_object(
         SAKURA_DIR,
         "sakura_tree.obj",
-        materials=scene.SAKURA_MATERIALS,
+        materials=materials.SAKURA_MATERIALS,
         instances=sakura_instances,
         pivot="base",
     )
@@ -578,8 +327,8 @@ def main():
     for pos in EXTRA_LANTERN_POSITIONS:
         lantern_instances.append((pos, (0.0, 0.0, 0.0), (1.0, 1.0, 1.0)))
 
-    assert len(lantern_instances) == len(state.lighting["lantern_lights"]) == len(state.lantern_drift), (
-        "lantern_instances count must match state.NUM_LANTERNS"
+    assert len(lantern_instances) == len(state.lighting["lantern_lights"]) == len(anim.lantern_drift), (
+        "lantern_instances count must match anim.NUM_LANTERNS"
     )
 
     # The mesh's own raw bbox center sits roughly at the lantern's glow —
@@ -590,7 +339,7 @@ def main():
     flying_lantern_objects = scene.load_simple_object(
         FLYING_LANTERN_DIR,
         "flying_lantern.obj",
-        materials=scene.FLYING_LANTERN_MATERIALS,
+        materials=materials.FLYING_LANTERN_MATERIALS,
         instances=lantern_instances,
         recenter=False,
         light_offset=lantern_glow_offset,
@@ -610,11 +359,11 @@ def main():
     # Each starts at a different random point within that radius (instead of
     # all starting at the center), so they're out of phase from the start.
     for i, (inst_pos, _, _) in enumerate(lantern_instances):
-        drift = state.lantern_drift[i]
+        drift = anim.lantern_drift[i]
         drift["base"] = glm.vec3(*inst_pos)
         drift["radius"] = extent * LANTERN_DRIFT_RADIUS_FACTOR
         drift["speed"] = extent * LANTERN_DRIFT_SPEED_FACTOR
-        drift["offset"] = state.random_point_in_sphere(drift["radius"])
+        drift["offset"] = anim.random_point_in_sphere(drift["radius"])
 
     # ── Load dragon candle (single pre-baked mesh, "o dragon_candles.002") ──
     # int_light_a (req 2) is carried by this object — light_offset is the
@@ -628,7 +377,7 @@ def main():
         DRAGON_CANDLE_DIR,
         "dragon_candle.obj",
         pos=dragon_candle_pos,
-        materials=scene.DRAGON_CANDLE_MATERIALS,
+        materials=materials.DRAGON_CANDLE_MATERIALS,
         recenter=False,
         light_offset=dragon_candle_glow_offset,
         light_refs=[state.lighting["int_light_a"]],
@@ -655,7 +404,7 @@ def main():
     hanging_lantern_objects = scene.load_simple_object(
         HANGING_LANTERN_DIR,
         "hanging_lantern.obj",
-        materials=scene.HANGING_LANTERN_MATERIALS,
+        materials=materials.HANGING_LANTERN_MATERIALS,
         instances=hanging_instances,
         recenter=False,
         light_offset=hanging_lantern_glow_offset,
@@ -763,13 +512,13 @@ def main():
         "interiorMin": glGetUniformLocation(prog, "interiorMin"),
         "interiorMax": glGetUniformLocation(prog, "interiorMax"),
         "lanternOn": [
-            glGetUniformLocation(prog, f"lanternOn[{i}]") for i in range(state.NUM_LANTERNS)
+            glGetUniformLocation(prog, f"lanternOn[{i}]") for i in range(anim.NUM_LANTERNS)
         ],
         "lanternPos": [
-            glGetUniformLocation(prog, f"lanternPos[{i}]") for i in range(state.NUM_LANTERNS)
+            glGetUniformLocation(prog, f"lanternPos[{i}]") for i in range(anim.NUM_LANTERNS)
         ],
         "lanternColor": [
-            glGetUniformLocation(prog, f"lanternColor[{i}]") for i in range(state.NUM_LANTERNS)
+            glGetUniformLocation(prog, f"lanternColor[{i}]") for i in range(anim.NUM_LANTERNS)
         ],
         "intLightAOn": glGetUniformLocation(prog, "intLightAOn"),
         "intLightAPos": glGetUniformLocation(prog, "intLightAPos"),
@@ -801,13 +550,13 @@ def main():
         inp.process_camera(window, speed)
         inp.process_lighting(delta_time)
         inp.process_debug_box(delta_time)
-        inp.process_lantern_drift(delta_time)
+        anim.process_lantern_drift(delta_time)
 
         # Apply each lantern's current drift offset to its instance's model
         # matrix (pure translation, so the normal matrix stays unchanged) and
         # keep its light/glow position in sync.
         for i in range(len(lantern_instances)):
-            drift = state.lantern_drift[i]
+            drift = anim.lantern_drift[i]
             model = glm.translate(glm.mat4(1.0), drift["base"] + drift["offset"])
             for obj in flying_lantern_objects[
                 i * flying_lantern_n_parts : (i + 1) * flying_lantern_n_parts

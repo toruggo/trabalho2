@@ -195,22 +195,6 @@ _BOX_KEYS = {
 }
 
 
-def process_lantern_drift(delta_time):
-    """Advance each flying lantern's slow wander: move in a straight line,
-    and "ping-pong" (reflect) off the boundary of its drift radius."""
-    for drift in state.lantern_drift:
-        drift['offset'] += drift['dir'] * drift['speed'] * delta_time
-        dist = glm.length(drift['offset'])
-        if dist > drift['radius'] and dist > 0.0:
-            normal = drift['offset'] / dist
-            # Snap back onto the boundary before reflecting. Without this,
-            # a near-radial bounce can leave the lantern just outside the
-            # radius every frame, flipping 'dir' back and forth and making
-            # it appear stuck in place.
-            drift['offset'] = normal * drift['radius']
-            drift['dir'] = glm.reflect(drift['dir'], normal)
-
-
 def process_debug_box(delta_time):
     if not state.debug_view:
         return

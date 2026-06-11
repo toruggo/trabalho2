@@ -84,7 +84,7 @@ void main() {
 
     vec3 result = vec3(0.0);
     if (ambientOn == 1) {
-        result += Ka * ambientStrength * ambientColor;
+        result += Ka * ambientStrength * ambientColor * texColor;
     }
 
     bool isInterior = all(greaterThan(fragPos, interiorMin)) && all(lessThan(fragPos, interiorMax));
