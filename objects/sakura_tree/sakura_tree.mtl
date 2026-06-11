@@ -1,0 +1,22 @@
+# Blender 5.1.0 MTL File: 'None'
+# www.blender.org
+
+newmtl Bark001_2K_JPG_Mat
+Ns 200.000000
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd C:/Users/Vitor/Downloads/sakura-tree-01-low-poly-model (1)/textures/Bark001_2K_JPG.png
+
+newmtl Sakura_Mat
+Ns 200.000000
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd C:/Users/Vitor/Downloads/sakura-tree-01-low-poly-model (1)/textures/Sakura.png
+map_d C:/Users/Vitor/Downloads/sakura-tree-01-low-poly-model (1)/textures/Sakura_Opacity.png

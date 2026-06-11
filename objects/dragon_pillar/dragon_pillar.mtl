@@ -1,0 +1,12 @@
+# Blender 5.1.0 MTL File: 'dragon_pillar.blend'
+# www.blender.org
+
+newmtl 01_Model_4_300K_u1_v1
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Kd C:/Users/Vitor/Downloads/stone-dragon-pillar-01/source/stone_dragon_pillar_01/01_Model_4_300K_u1_v1.jpg

@@ -1,0 +1,29 @@
+# Blender 5.1.0 MTL File: '17728_autosave.blend'
+# www.blender.org
+
+newmtl Black_tiles
+map_Kd textures/tiles07_basecolor_diffuse.jpg
+
+newmtl Black_wood
+map_Kd textures/wood03_diffuse.jpg
+
+newmtl Cement
+map_Kd textures/Metal_basecolor.jpg
+
+newmtl Cement.001
+map_Kd textures/Metal_basecolor.jpg
+
+newmtl Maldivian_Cement_Brick_Wall
+map_Kd textures/maldives_Brick_wall_diffuseOriginal.jpg
+
+newmtl Procedural_Gold
+Kd 0.800000 0.650000 0.100000
+
+newmtl Red_wood
+map_Kd textures/wood04_diffuse.jpg
+
+newmtl Simple_red_wood
+map_Kd textures/wood30_diffuse.jpg
+
+newmtl Wood.117
+map_Kd textures/wood-47-dark_diffuse.jpg
