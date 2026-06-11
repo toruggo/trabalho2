@@ -31,7 +31,7 @@ keys_pressed = set()
 #                 together as a group (key 4).
 lighting = {
     'ambient_on':       True,
-    'ambient_strength': 0.05,
+    'ambient_strength': 0.15,
     'ambient_color':    (1.0, 1.0, 1.0),
 
     'diffuse_mult':  1.0,

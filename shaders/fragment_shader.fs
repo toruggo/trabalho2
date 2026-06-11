@@ -10,6 +10,13 @@ uniform vec3 Ka;
 uniform vec3 Kd;
 uniform vec3 Ks;
 uniform float shininess;
+uniform float alpha;
+
+// Emissive term — makes light-carrying objects (lantern glow, candle) read
+// as the light source themselves. Gated per-object by emissiveOn so turning
+// a light off (req 3) also turns off its lamp's glow.
+uniform vec3 Ke;
+uniform int emissiveOn;
 
 // Ambient (req 3 / req 4).
 uniform int ambientOn;
@@ -79,6 +86,9 @@ void main() {
     vec3 texColor = texSample.rgb;
 
     vec3 norm    = normalize(fragNormal);
+    // Some imported meshes (e.g. the temple's wood floor) have inverted
+    // normals. Flip to the visible side so they still receive light.
+    if (!gl_FrontFacing) norm = -norm;
     vec3 viewDir = normalize(viewPos - fragPos);
 
     vec3 result = vec3(0.0);
@@ -103,5 +113,11 @@ void main() {
         result += computeLight(intLightB3Pos, intLightBColor, norm, viewDir, texColor);
     }
 
-    gl_FragColor = vec4(result, 1.0);
+    if (emissiveOn == 1) {
+        // Modulate by the texture so only the bright parts of the lamp's
+        // own texture (the "bulb") glow strongly, instead of a flat wash.
+        result += Ke * texColor;
+    }
+
+    gl_FragColor = vec4(result, alpha * texSample.a);
 }

@@ -36,38 +36,6 @@ def blender_to_scene_pos(x, y, z):
     return (x, z, -y)
 
 
-def interior_bounds_from_cube(position, rotation, scale, temple_center, margin=0.0):
-    """Compute (interior_min, interior_max) in scene coords for a Blender
-    cube primitive (default 2x2x2, so half-extent == scale) with the given
-    Blender world `position`/`rotation` (radians, XYZ Euler)/`scale`,
-    relative to the recentered temple (`temple_center`).
-
-    Used to derive the interior-lighting AABB from a marker object (e.g.
-    "Cube.150__0" in scene.json) instead of an extent-based guess.
-
-    `margin` grows the box by that amount on every side (e.g. to cover
-    interior objects, like pillars, that sit just outside the marker cube).
-    """
-    rx, ry, rz = rotation
-    R = (glm.rotate(glm.mat4(1.0), rx, glm.vec3(1, 0, 0))
-         * glm.rotate(glm.mat4(1.0), ry, glm.vec3(0, 1, 0))
-         * glm.rotate(glm.mat4(1.0), rz, glm.vec3(0, 0, 1)))
-
-    corners = []
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            for sz in (-1, 1):
-                local = glm.vec4(sx * scale[0], sy * scale[1], sz * scale[2], 1.0)
-                world = R * local
-                blender_pos = (world.x + position[0], world.y + position[1], world.z + position[2])
-                scene_pos = blender_to_scene_pos(*blender_pos)
-                corners.append(tuple(scene_pos[i] - temple_center[i] for i in range(3)))
-
-    mins = tuple(min(c[i] for c in corners) - margin for i in range(3))
-    maxs = tuple(max(c[i] for c in corners) + margin for i in range(3))
-    return mins, maxs
-
-
 def place_baked_instance(baked_pos, baked_rot_z_deg, target_pos, target_rot_z_deg,
                           baked_scale, target_scale, temple_center):
     """Compute (pos, rot_deg, scale) for `instances=` to place a copy of a

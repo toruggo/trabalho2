@@ -82,14 +82,12 @@ HANGING_LANTERN_TRANSFORMS = [
 ]
 HANGING_LANTERN_ORIGIN_INDEX = 1
 
-# Cube.150__0 from scene.json — a marker cube placed in Blender to delimit
-# the temple's interior, used to derive the interior-lighting AABB.
-# (position, rotation_xyz_rad, scale), Blender world coordinates.
-INTERIOR_CUBE_TRANSFORM = (
-    (0.9981422424316406, 8.310425758361816, 10.457818031311035),
-    (-1.5707966089248657, -7.993657819005406e-12, -6.267430580919608e-05),
-    (3.5755910873413086, 1.914015769958496, 3.5755913257598877),
-)
+# World-space AABB marking the temple interior, hand-tuned with the debug
+# box tool (key M + arrows/J/L/I/K/U/O) to snugly fit the interior room
+# (floor to ceiling, wall to wall) — used to mask interior-only/exterior-only
+# lights (req 1 / req 2).
+INTERIOR_AABB_MIN = (-3.55, -2.81, -24.33)
+INTERIOR_AABB_MAX = (4.40, 1.43, 5.21)
 
 # Market stalls/props. Each mesh was exported pre-baked to one specific
 # scene.json instance's world transform ("baked": position, rotation_z_deg,
@@ -405,6 +403,7 @@ def main():
         instances=lantern_instances,
         recenter=False,
         light_offset=lantern_glow_offset,
+        light_refs=state.lighting["lantern_lights"],
     )
 
     # One SceneObject per instance is enough to compute that instance's
@@ -428,6 +427,7 @@ def main():
         materials=scene.DRAGON_CANDLE_MATERIALS,
         recenter=False,
         light_offset=dragon_candle_glow_offset,
+        light_refs=[state.lighting["int_light_a"]],
     )
     state.lighting["int_light_a"]["pos"] = matrizes.light_world_pos(dragon_candle_objects[0])
 
@@ -453,6 +453,7 @@ def main():
         instances=hanging_instances,
         recenter=False,
         light_offset=hanging_lantern_glow_offset,
+        light_refs=[state.lighting["int_light_b"]] * len(hanging_instances),
     )
 
     # One SceneObject per instance is enough to compute that instance's
@@ -485,8 +486,14 @@ def main():
         + market_objects
     )
 
+    # Translucent parts (e.g. paper lantern shells) are drawn in a separate
+    # pass, after everything opaque, with blending on and depth writes off.
+    opaque_objects = [o for o in scene_objects if o.alpha >= 1.0]
+    translucent_objects = [o for o in scene_objects if o.alpha < 1.0]
+
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_MULTISAMPLE)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     # ── Camera ────────────────────────────────────────────────────────────────
     cam_dist = extent * 0.9
@@ -507,15 +514,8 @@ def main():
     # Interior lights (req 2) — positions already set above via
     # matrizes.light_world_pos(dragon_candle_objects[0] / hanging_obj_i).
 
-    # World-space AABB marking the temple interior, derived from the
-    # Cube.150__0 marker placed in Blender (req 2 light masking). Grown by
-    # a margin so nearby interior objects (e.g. pillars) that sit just
-    # outside the marker cube are still treated as interior.
-    interior_min, interior_max = matrizes.interior_bounds_from_cube(
-        *INTERIOR_CUBE_TRANSFORM, temple_center, margin=2.0
-    )
-    state.interior_min = glm.vec3(*interior_min)
-    state.interior_max = glm.vec3(*interior_max)
+    state.interior_min = glm.vec3(*INTERIOR_AABB_MIN)
+    state.interior_max = glm.vec3(*INTERIOR_AABB_MAX)
 
     glfw.set_cursor_pos_callback(window, inp.mouse_event)
     glfw.set_key_callback(window, inp.key_event)
@@ -532,6 +532,9 @@ def main():
         "Kd": glGetUniformLocation(prog, "Kd"),
         "Ks": glGetUniformLocation(prog, "Ks"),
         "shininess": glGetUniformLocation(prog, "shininess"),
+        "alpha": glGetUniformLocation(prog, "alpha"),
+        "Ke": glGetUniformLocation(prog, "Ke"),
+        "emissiveOn": glGetUniformLocation(prog, "emissiveOn"),
         "ambientOn": glGetUniformLocation(prog, "ambientOn"),
         "ambientStrength": glGetUniformLocation(prog, "ambientStrength"),
         "ambientColor": glGetUniformLocation(prog, "ambientColor"),
@@ -605,9 +608,11 @@ def main():
             set3f(locs["intLightBPos"][i], pos)
         glUniform3f(locs["intLightBColor"], *ib["color"])
 
-        scene.draw_objects(locs, scene_objects, pos_loc, uv_loc, norm_loc)
+        scene.draw_objects(locs, opaque_objects, pos_loc, uv_loc, norm_loc)
 
-        # ── Debug view (key M): light markers + interior AABB wireframe ──────
+        # ── Debug view (key M): interior AABB wireframe ───────────────────────
+        # Light markers were dropped now that the lamp geometry itself glows
+        # (Ke/emissiveOn) and acts as the visible light source.
         if state.debug_view:
             debug_shader.use()
             glUniformMatrix4fv(debug_locs["view"], 1, GL_FALSE, glm.value_ptr(view))
@@ -628,17 +633,6 @@ def main():
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             draw_debug_cube(aabb_center, aabb_half, (1.0, 1.0, 0.0))
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-
-            # One small marker cube per active light, colored by that light's color.
-            marker_half = extent * 0.01
-            for lantern in lighting["lantern_lights"]:
-                if lantern["on"]:
-                    draw_debug_cube(lantern["pos"], marker_half, lantern["color"])
-            if ia["on"]:
-                draw_debug_cube(ia["pos"], marker_half, ia["color"])
-            if ib["on"]:
-                for pos in ib["positions"]:
-                    draw_debug_cube(pos, marker_half, ib["color"])
 
         # ── Skybox (drawn last; xyww trick keeps it at depth 1.0) ─────────────
         glDepthFunc(GL_LEQUAL)
@@ -661,6 +655,15 @@ def main():
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_tex)
         glDrawArrays(GL_TRIANGLES, 0, 36)
         glDepthFunc(GL_LESS)
+
+        # Translucent lantern shells: drawn after the skybox so they blend
+        # over it correctly (depth writes off, depth test on).
+        shader.use()
+        glEnable(GL_BLEND)
+        glDepthMask(GL_FALSE)
+        scene.draw_objects(locs, translucent_objects, pos_loc, uv_loc, norm_loc)
+        glDepthMask(GL_TRUE)
+        glDisable(GL_BLEND)
 
         glfw.swap_buffers(window)
 
