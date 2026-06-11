@@ -65,7 +65,11 @@ interior_max = glm.vec3(0.0)
 # Debug visualization (key M) — draws a small cube at each active light's
 # position (colored by that light's color) and the interior AABB wireframe,
 # to make light placement/parameters easier to tune.
-debug_view = True
+debug_view = False
+
+# Wireframe view (key T) — draws the whole scene with GL_LINE polygon mode
+# instead of GL_FILL.
+wireframe_view = False
 
 
 # Slow wandering animation for the flying lanterns: each lantern drifts in a

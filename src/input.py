@@ -67,6 +67,9 @@ def key_event(window, key, scancode, action, mods):
             )
             if state.debug_view:
                 _dump_lights()
+        elif key == glfw.KEY_T:
+            state.wireframe_view = not state.wireframe_view
+            print(f"[Debug] Wireframe view: {'ON' if state.wireframe_view else 'OFF'}")
     elif action == glfw.RELEASE:
         state.keys_pressed.discard(key)
 

@@ -817,6 +817,11 @@ def main():
         glClearColor(0.12, 0.12, 0.15, 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+        # Wireframe view (key T): draw the whole scene with GL_LINE polygon
+        # mode instead of GL_FILL.
+        scene_polygon_mode = GL_LINE if state.wireframe_view else GL_FILL
+        glPolygonMode(GL_FRONT_AND_BACK, scene_polygon_mode)
+
         # ── Temple ────────────────────────────────────────────────────────────
         shader.use()
         glUniformMatrix4fv(locs["view"], 1, GL_FALSE, glm.value_ptr(view))
@@ -882,7 +887,7 @@ def main():
             aabb_half = (state.interior_max - state.interior_min) * 0.5
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             draw_debug_cube(aabb_center, aabb_half, (1.0, 1.0, 0.0))
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+            glPolygonMode(GL_FRONT_AND_BACK, scene_polygon_mode)
 
         # ── Skybox (drawn last; xyww trick keeps it at depth 1.0) ─────────────
         glDepthFunc(GL_LEQUAL)
