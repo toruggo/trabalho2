@@ -32,22 +32,13 @@ uniform vec3 interiorMin;
 uniform vec3 interiorMax;
 
 // Exterior lights, one per flying lantern — affect only fragments outside
-// the interior box (req 1).
-uniform int lantern1On;
-uniform vec3 lantern1Pos;
-uniform vec3 lantern1Color;
+// the interior box (req 1). NUM_LANTERNS must match state.NUM_LANTERNS /
+// the number of flying lantern instances in main.py.
+#define NUM_LANTERNS 20
 
-uniform int lantern2On;
-uniform vec3 lantern2Pos;
-uniform vec3 lantern2Color;
-
-uniform int lantern3On;
-uniform vec3 lantern3Pos;
-uniform vec3 lantern3Color;
-
-uniform int lantern4On;
-uniform vec3 lantern4Pos;
-uniform vec3 lantern4Color;
+uniform int lanternOn[NUM_LANTERNS];
+uniform vec3 lanternPos[NUM_LANTERNS];
+uniform vec3 lanternColor[NUM_LANTERNS];
 
 // Interior lights — affect only fragments inside the interior box (req 2).
 uniform int intLightAOn;
@@ -99,10 +90,11 @@ void main() {
     bool isInterior = all(greaterThan(fragPos, interiorMin)) && all(lessThan(fragPos, interiorMax));
 
     if (!isInterior) {
-        if (lantern1On == 1) result += computeLight(lantern1Pos, lantern1Color, norm, viewDir, texColor);
-        if (lantern2On == 1) result += computeLight(lantern2Pos, lantern2Color, norm, viewDir, texColor);
-        if (lantern3On == 1) result += computeLight(lantern3Pos, lantern3Color, norm, viewDir, texColor);
-        if (lantern4On == 1) result += computeLight(lantern4Pos, lantern4Color, norm, viewDir, texColor);
+        for (int i = 0; i < NUM_LANTERNS; i++) {
+            if (lanternOn[i] == 1) {
+                result += computeLight(lanternPos[i], lanternColor[i], norm, viewDir, texColor);
+            }
+        }
     }
     if (isInterior && intLightAOn == 1) {
         result += computeLight(intLightAPos, intLightAColor, norm, viewDir, texColor);

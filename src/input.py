@@ -55,6 +55,11 @@ def key_event(window, key, scancode, action, mods):
             print(
                 f"[Light] Interior B (hanging lanterns x3): {'ON' if light['on'] else 'OFF'}"
             )
+        elif key == glfw.KEY_P:
+            # TEMPORARY: print the camera position so it can be used as a
+            # placement point for new lanterns.
+            cam = state.camera
+            print(f"[Camera] pos={_fmt(cam['pos'])}")
         elif key == glfw.KEY_M:
             state.debug_view = not state.debug_view
             print(
@@ -181,6 +186,22 @@ _BOX_KEYS = {
     glfw.KEY_PAGE_UP, glfw.KEY_PAGE_DOWN,
     glfw.KEY_J, glfw.KEY_L, glfw.KEY_I, glfw.KEY_K, glfw.KEY_U, glfw.KEY_O,
 }
+
+
+def process_lantern_drift(delta_time):
+    """Advance each flying lantern's slow wander: move in a straight line,
+    and "ping-pong" (reflect) off the boundary of its drift radius."""
+    for drift in state.lantern_drift:
+        drift['offset'] += drift['dir'] * drift['speed'] * delta_time
+        dist = glm.length(drift['offset'])
+        if dist > drift['radius'] and dist > 0.0:
+            normal = drift['offset'] / dist
+            # Snap back onto the boundary before reflecting. Without this,
+            # a near-radial bounce can leave the lantern just outside the
+            # radius every frame, flipping 'dir' back and forth and making
+            # it appear stuck in place.
+            drift['offset'] = normal * drift['radius']
+            drift['dir'] = glm.reflect(drift['dir'], normal)
 
 
 def process_debug_box(delta_time):

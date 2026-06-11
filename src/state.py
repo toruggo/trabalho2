@@ -1,15 +1,22 @@
+import random
+
 import glm
+
+# Total number of flying-lantern point lights (4 original + 16 added around
+# the temple exterior). Must match NUM_LANTERNS in fragment_shader.fs and the
+# number of instances in main.py's lantern_instances.
+NUM_LANTERNS = 20
 
 # Camera state (first-person view). Populated by main.py once `extent` is known.
 camera = {
-    'pos':    glm.vec3(0.0, 0.0, 0.0),
-    'front':  glm.vec3(0.0, 0.0, -1.0),
-    'up':     glm.vec3(0.0, 1.0, 0.0),
-    'yaw':    -90.0,
-    'pitch':  0.0,
-    'first':  True,
-    'last_x': 400.0,
-    'last_y': 300.0,
+    "pos": glm.vec3(0.0, 0.0, 0.0),
+    "front": glm.vec3(0.0, 0.0, -1.0),
+    "up": glm.vec3(0.0, 1.0, 0.0),
+    "yaw": -90.0,
+    "pitch": 0.0,
+    "first": True,
+    "last_x": 400.0,
+    "last_y": 300.0,
 }
 
 # Currently held-down keys (for continuous/per-frame input handling).
@@ -30,26 +37,24 @@ keys_pressed = set()
 #                 emitting its own copy of the same-colored light, toggled
 #                 together as a group (key 4).
 lighting = {
-    'ambient_on':       True,
-    'ambient_strength': 0.15,
-    'ambient_color':    (1.0, 1.0, 1.0),
-
-    'diffuse_mult':  1.0,
-    'specular_mult': 1.0,
-
-    'lantern_lights': [
-        {'on': True, 'color': (1.0, 0.85, 0.6), 'pos': glm.vec3(0.0)}
-        for _ in range(4)
+    "ambient_on": True,
+    "ambient_strength": 0.15,
+    "ambient_color": (1.0, 1.0, 1.0),
+    "diffuse_mult": 1.0,
+    "specular_mult": 1.0,
+    "lantern_lights": [
+        {"on": True, "color": (1.0, 0.85, 0.6), "pos": glm.vec3(0.0)}
+        for _ in range(NUM_LANTERNS)
     ],
-    'int_light_a': {
-        'on':    True,
-        'color': (1.0, 0.55, 0.2),
-        'pos':   glm.vec3(0.0),
+    "int_light_a": {
+        "on": True,
+        "color": (2.0, 0.55, 0.2),
+        "pos": glm.vec3(0.0),
     },
-    'int_light_b': {
-        'on':    True,
-        'color': (0.4, 0.7, 1.0),
-        'positions': [glm.vec3(0.0) for _ in range(3)],
+    "int_light_b": {
+        "on": True,
+        "color": (1.5, 0.3, 0.1),
+        "positions": [glm.vec3(0.0) for _ in range(3)],
     },
 }
 
@@ -61,3 +66,41 @@ interior_max = glm.vec3(0.0)
 # position (colored by that light's color) and the interior AABB wireframe,
 # to make light placement/parameters easier to tune.
 debug_view = True
+
+
+# Slow wandering animation for the flying lanterns: each lantern drifts in a
+# random straight line from its 'base' position, then "ping-pongs" (reflects)
+# off the boundary of a sphere of 'radius' around 'base'. Each lantern starts
+# at a different random point within that sphere (and with a different random
+# direction), so they're out of phase with each other from the start.
+# 'base'/'radius'/'speed'/'offset' are filled in by main.py once `extent` is
+# known.
+def _random_drift_dir():
+    d = glm.vec3(
+        random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0)
+    )
+    return glm.normalize(d)
+
+
+def random_point_in_sphere(radius):
+    """Uniformly sample a point within a sphere of the given radius (rejection sampling)."""
+    while True:
+        p = glm.vec3(
+            random.uniform(-1.0, 1.0),
+            random.uniform(-1.0, 1.0),
+            random.uniform(-1.0, 1.0),
+        )
+        if glm.length(p) <= 1.0:
+            return p * radius
+
+
+lantern_drift = [
+    {
+        "base": glm.vec3(0.0),
+        "offset": glm.vec3(0.0),
+        "dir": _random_drift_dir(),
+        "speed": 0.0,
+        "radius": 0.0,
+    }
+    for _ in range(NUM_LANTERNS)
+]
