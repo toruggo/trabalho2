@@ -11,19 +11,20 @@ def _fmt(v):
 
 
 def _dump_lights():
+    rig = state.lighting_rig
     print("[Debug] Light positions/colors:")
-    for i, lantern in enumerate(state.lighting["lantern_lights"]):
+    for i, lantern in enumerate(rig.lantern_lights):
         print(
-            f"  lantern{i+1}: on={lantern['on']} pos={_fmt(lantern['pos'])} color={lantern['color']}"
+            f"  lantern{i+1}: on={lantern.on} pos={_fmt(lantern.positions[0])} color={lantern.color}"
         )
-    ia = state.lighting["int_light_a"]
+    ia = rig.int_light_a
     print(
-        f"  int_light_a (dragon candle): on={ia['on']} pos={_fmt(ia['pos'])} color={ia['color']}"
+        f"  int_light_a (dragon candle): on={ia.on} pos={_fmt(ia.positions[0])} color={ia.color}"
     )
-    ib = state.lighting["int_light_b"]
-    for i, pos in enumerate(ib["positions"]):
+    ib = rig.int_light_b
+    for i, pos in enumerate(ib.positions):
         print(
-            f"  int_light_b[{i}] (hanging lantern): on={ib['on']} pos={_fmt(pos)} color={ib['color']}"
+            f"  int_light_b[{i}] (hanging lantern): on={ib.on} pos={_fmt(pos)} color={ib.color}"
         )
     print(
         f"  interior AABB: min={_fmt(state.interior_min)} max={_fmt(state.interior_max)}"
@@ -31,29 +32,28 @@ def _dump_lights():
 
 
 def key_event(window, key, scancode, action, mods):
+    rig = state.lighting_rig
+
     if action == glfw.PRESS:
         state.keys_pressed.add(key)
 
         if key == glfw.KEY_1:
-            state.lighting["ambient_on"] = not state.lighting["ambient_on"]
-            print(f"[Light] Ambient: {'ON' if state.lighting['ambient_on'] else 'OFF'}")
+            rig.ambient_on = not rig.ambient_on
+            print(f"[Light] Ambient: {'ON' if rig.ambient_on else 'OFF'}")
         elif key == glfw.KEY_2:
-            lanterns = state.lighting["lantern_lights"]
-            new_state = not lanterns[0]["on"]
-            for light in lanterns:
-                light["on"] = new_state
+            new_state = not rig.lantern_lights[0].on
+            for light in rig.lantern_lights:
+                light.on = new_state
             print(f"[Light] Exterior lanterns (1-4): {'ON' if new_state else 'OFF'}")
         elif key == glfw.KEY_3:
-            light = state.lighting["int_light_a"]
-            light["on"] = not light["on"]
+            rig.int_light_a.on = not rig.int_light_a.on
             print(
-                f"[Light] Interior A (dragon candle): {'ON' if light['on'] else 'OFF'}"
+                f"[Light] Interior A (dragon candle): {'ON' if rig.int_light_a.on else 'OFF'}"
             )
         elif key == glfw.KEY_4:
-            light = state.lighting["int_light_b"]
-            light["on"] = not light["on"]
+            rig.int_light_b.on = not rig.int_light_b.on
             print(
-                f"[Light] Interior B (hanging lanterns x3): {'ON' if light['on'] else 'OFF'}"
+                f"[Light] Interior B (hanging lanterns x3): {'ON' if rig.int_light_b.on else 'OFF'}"
             )
         elif key == glfw.KEY_P:
             # TEMPORARY: print the camera position so it can be used as a
@@ -74,13 +74,11 @@ def key_event(window, key, scancode, action, mods):
         state.keys_pressed.discard(key)
 
         if key in (glfw.KEY_Z, glfw.KEY_X):
-            print(
-                f"[Lighting] ambient_strength = {state.lighting['ambient_strength']:.3f}"
-            )
+            print(f"[Lighting] ambient_strength = {rig.ambient_strength:.3f}")
         elif key in (glfw.KEY_C, glfw.KEY_V):
-            print(f"[Lighting] diffuse_mult = {state.lighting['diffuse_mult']:.3f}")
+            print(f"[Lighting] diffuse_mult = {rig.diffuse_mult:.3f}")
         elif key in (glfw.KEY_B, glfw.KEY_N):
-            print(f"[Lighting] specular_mult = {state.lighting['specular_mult']:.3f}")
+            print(f"[Lighting] specular_mult = {rig.specular_mult:.3f}")
         elif key in _BOX_KEYS:
             print(
                 f"[Debug] interior AABB: min={_fmt(state.interior_min)} max={_fmt(state.interior_max)}"
@@ -146,40 +144,29 @@ def process_lighting(delta_time):
     C/V -> diffuse multiplier -/+
     B/N -> specular multiplier -/+
     """
-    lighting = state.lighting
+    rig = state.lighting_rig
     keys = state.keys_pressed
 
     if glfw.KEY_Z in keys:
-        lighting["ambient_strength"] = max(
-            0.0, lighting["ambient_strength"] - AMBIENT_SPEED * delta_time
-        )
+        rig.ambient_strength = max(0.0, rig.ambient_strength - AMBIENT_SPEED * delta_time)
     if glfw.KEY_X in keys:
-        lighting["ambient_strength"] = min(
-            1.0, lighting["ambient_strength"] + AMBIENT_SPEED * delta_time
-        )
+        rig.ambient_strength = min(1.0, rig.ambient_strength + AMBIENT_SPEED * delta_time)
 
     if glfw.KEY_C in keys:
-        lighting["diffuse_mult"] = max(
-            0.0, lighting["diffuse_mult"] - DIFFUSE_SPEED * delta_time
-        )
+        rig.diffuse_mult = max(0.0, rig.diffuse_mult - DIFFUSE_SPEED * delta_time)
     if glfw.KEY_V in keys:
-        lighting["diffuse_mult"] = min(
-            3.0, lighting["diffuse_mult"] + DIFFUSE_SPEED * delta_time
-        )
+        rig.diffuse_mult = min(3.0, rig.diffuse_mult + DIFFUSE_SPEED * delta_time)
 
     if glfw.KEY_B in keys:
-        lighting["specular_mult"] = max(
-            0.0, lighting["specular_mult"] - SPECULAR_SPEED * delta_time
-        )
+        rig.specular_mult = max(0.0, rig.specular_mult - SPECULAR_SPEED * delta_time)
     if glfw.KEY_N in keys:
-        lighting["specular_mult"] = min(
-            3.0, lighting["specular_mult"] + SPECULAR_SPEED * delta_time
-        )
+        rig.specular_mult = min(3.0, rig.specular_mult + SPECULAR_SPEED * delta_time)
 
 
 # TEMPORARY: interior AABB tuning controls (active while debug view, key M,
 # is on). Move/resize the box live, then read the printed min/max (on key
-# release) and hardcode them, replacing INTERIOR_CUBE_TRANSFORM/margin.
+# release) and hardcode them, replacing INTERIOR_AABB_MIN/MAX in
+# scene_builder.py.
 #
 # Arrows / Page Up / Page Down -> move the box (X / Z / Y).
 # J/L -> shrink/grow X size, I/K -> grow/shrink Y size, U/O -> shrink/grow Z size.

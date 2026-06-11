@@ -6,7 +6,14 @@ import glm
 
 import geometry
 import matrizes
-from materials import DEFAULT_MATERIAL, MATERIAL_TEXTURES, TEMPLE_MATERIALS
+from lighting import Light
+
+# Generic material fallback for parts/materials with no explicit spec.
+# Ka == Kd: ambient reflectance mirrors diffuse reflectance, so the ambient
+# strength slider (req 4) has a visible effect across its whole 0-1 range.
+DEFAULT_MATERIAL = dict(
+    Ka=(0.7, 0.7, 0.7), Kd=(0.7, 0.7, 0.7), Ks=(0.1, 0.1, 0.1), shininess=8.0
+)
 
 
 @dataclass
@@ -23,11 +30,16 @@ class SceneObject:
     light_offset: glm.vec3 = field(default_factory=lambda: glm.vec3(0.0, 0.0, 0.0))
     alpha: float = 1.0
     Ke: tuple = (0.0, 0.0, 0.0)
-    light_ref: object = None
+    light: Light = None
 
 
-def load_temple(temple_dir):
-    """Load objects/temple/temple.obj as one SceneObject per material.
+def load_temple(temple_dir, materials, material_textures, gold_color=(204, 166, 26)):
+    """Load <temple_dir>/temple.obj as one SceneObject per material.
+
+    `materials` maps material name -> {Ka, Kd, Ks, shininess, alpha}
+    (req 7 — hand-set, not read from the .mtl). `material_textures` maps
+    material name -> texture path relative to `temple_dir`; materials with no
+    entry get a flat `gold_color` solid texture (e.g. Procedural_Gold).
 
     Returns (objects, extent, raw_center) — raw_center is the temple's raw
     (pre-recenter) bbox center in the OBJ export's own coordinate frame, used
@@ -47,14 +59,13 @@ def load_temple(temple_dir):
         vbo = geometry.upload_vbo(verts)
         n = len(verts) // 8
 
-        rel = MATERIAL_TEXTURES.get(mat)
+        rel = material_textures.get(mat)
         if rel:
             tex = geometry.load_texture(os.path.join(temple_dir, rel))
         else:
-            # Procedural_Gold: (0.8, 0.65, 0.1) -> uint8
-            tex = geometry.make_solid_texture(204, 166, 26)
+            tex = geometry.make_solid_texture(*gold_color)
 
-        params = TEMPLE_MATERIALS.get(mat, DEFAULT_MATERIAL)
+        params = materials.get(mat, DEFAULT_MATERIAL)
         objects.append(
             SceneObject(
                 vbo=vbo,
@@ -85,11 +96,10 @@ def load_simple_object(
     instances=None,
     recenter=True,
     pivot="center",
-    light_refs=None,
+    lights=None,
 ):
     """Generic loader for a single-object OBJ folder (dragon_pillar, jade_cube,
-    sakura_tree, grass_field, and future light-emitting objects like
-    flying_lantern).
+    sakura_tree, grass_field, and light-emitting objects like flying_lantern).
 
     `materials` maps material name -> {texture, alpha_texture, solid_color,
     Ka, Kd, Ks, shininess}. Missing entries/keys fall back to DEFAULT_MATERIAL
@@ -110,9 +120,9 @@ def load_simple_object(
     whose Blender pivot is at their base, so `pos`/`instances` translations
     line up with object_transforms.md positions without sinking into the floor.
 
-    `light_refs`, if given, is a list of `state.lighting` entries (dicts with
-    an 'on' key), one per instance, used to gate that instance's emissive
-    (Ke) parts so a lamp's glow turns off with its light (req 3).
+    `lights`, if given, is a list of `lighting.Light` instances, one per
+    instance, used to gate that instance's emissive (Ke) parts so a lamp's
+    glow turns off with its light (req 3).
     """
     materials = materials or {}
 
@@ -147,7 +157,7 @@ def load_simple_object(
     for inst_i, (t_pos, t_rot, t_scale) in enumerate(transforms):
         model = matrizes.model_matrix(t_pos, t_rot, t_scale)
         nmat = matrizes.normal_matrix(model)
-        light_ref = light_refs[inst_i] if light_refs is not None else None
+        light = lights[inst_i] if lights is not None else None
         for vbo, tex, n, spec in parts:
             objects.append(
                 SceneObject(
@@ -163,7 +173,7 @@ def load_simple_object(
                     light_offset=offset,
                     alpha=spec.get("alpha", 1.0),
                     Ke=spec.get("Ke", (0.0, 0.0, 0.0)),
-                    light_ref=light_ref,
+                    light=light,
                 )
             )
 
@@ -185,7 +195,7 @@ def draw_objects(locs, objects, pos_loc, uv_loc, norm_loc):
         glUniform3f(locs["Ke"], *obj.Ke)
         glUniform1i(
             locs["emissiveOn"],
-            1 if (obj.light_ref is None or obj.light_ref["on"]) else 0,
+            1 if (obj.light is None or obj.light.on) else 0,
         )
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, obj.tex)
