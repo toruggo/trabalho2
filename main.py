@@ -721,6 +721,12 @@ def main():
     )
     speed = extent * 0.02
 
+    # Keep the camera between the grass and a height that's enough to fly
+    # over the temple roof, but not much further. Grass world-space Y sits
+    # around -11 (raw grass bbox shifted by -temple_center.y).
+    state.camera_min_y = -10.0
+    state.camera_max_y = 45.0
+
     # ── Lighting setup ────────────────────────────────────────────────────────
     # Exterior lights (req 1) — one per flying lantern, positions already set
     # above via matrizes.light_world_pos(lantern_obj).

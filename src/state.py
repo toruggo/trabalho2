@@ -19,6 +19,12 @@ camera = {
     "last_y": 300.0,
 }
 
+# Vertical bounds for the camera (world-space Y), so it can't fly below the
+# grass/ground or far above the temple. Filled in by main.py once the grass
+# field's world-space height is known.
+camera_min_y = 0.0
+camera_max_y = 0.0
+
 # Currently held-down keys (for continuous/per-frame input handling).
 keys_pressed = set()
 

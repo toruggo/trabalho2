@@ -128,6 +128,10 @@ def process_camera(window, speed):
     if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
         cam["pos"] -= cam["up"] * speed
 
+    # Keep the camera above the ground and below "flying over the temple"
+    # height, regardless of which keys produced the movement.
+    cam["pos"].y = max(state.camera_min_y, min(state.camera_max_y, cam["pos"].y))
+
 
 # Held-key adjustment speeds (units per second).
 AMBIENT_SPEED = 0.2
