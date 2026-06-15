@@ -1,3 +1,7 @@
+// Fragment shader do Projeto 3: ambiente, difusa e especular no modelo local por pixel.
+// Os varyings vêm do vertex shader já interpolados no triângulo: posição e UV no mundo,
+// normal no mundo.
+
 varying vec3 fragPos;
 varying vec2 out_texture;
 varying vec3 fragNormal;
@@ -5,42 +9,40 @@ varying vec3 fragNormal;
 uniform vec3 viewPos;
 uniform sampler2D samplerTexture;
 
-// Per-object material (req 7).
+// Ka Kd Ks e shininess vêm por objeto 
 uniform vec3 Ka;
 uniform vec3 Kd;
 uniform vec3 Ks;
 uniform float shininess;
 uniform float alpha;
 
-// Emissive term — makes light-carrying objects (lantern glow, candle) read
-// as the light source themselves. Gated per-object by emissiveOn so turning
-// a light off (req 3) also turns off its lamp's glow.
+// Ke coeficiente emissivo; emissiveOn liga ou corta o termo junto ao interruptor da luz.
 uniform vec3 Ke;
 uniform int emissiveOn;
 
-// Ambient (req 3 / req 4).
+// Luz ambiente uniforme em toda a cena: liga ou desliga, muda a intensidade.
 uniform int ambientOn;
 uniform float ambientStrength;
 uniform vec3 ambientColor;
 
-// Diffuse / specular adjustment (req 5 / req 6).
+// Escala global da parcela difusa e da parcela especular, teclas C V e B N.
 uniform float diffuseMult;
 uniform float specularMult;
 
-// World-space AABB used to mask interior-only / exterior-only lights.
+// Cantos opostos em espaço mundo de uma caixa alinhada aos eixos que marca o interior do templo.
+// Só com isso o shader separa luz de fora e luz de dentro sem stencil extra.
 uniform vec3 interiorMin;
 uniform vec3 interiorMax;
 
-// Exterior lights, one per flying lantern — affect only fragments outside
-// the interior box (req 1). NUM_LANTERNS must match state.NUM_LANTERNS /
-// the number of flying lantern instances in main.py.
+// Até NUM_LANTERNS fontes pontuais nas lanternas voadoras, só fora da caixa interior.
+// Mantenha este número igual ao de instâncias configuradas no Python.
 #define NUM_LANTERNS 20
 
 uniform int lanternOn[NUM_LANTERNS];
 uniform vec3 lanternPos[NUM_LANTERNS];
 uniform vec3 lanternColor[NUM_LANTERNS];
 
-// Interior lights — affect only fragments inside the interior box (req 2).
+// Luzes internas em duas famílias com cores diferentes, só dentro da caixa interior.
 uniform int intLightAOn;
 uniform vec3 intLightAPos;
 uniform vec3 intLightAColor;
@@ -51,24 +53,25 @@ uniform vec3 intLightB2Pos;
 uniform vec3 intLightB3Pos;
 uniform vec3 intLightBColor;
 
+// Uma chamada por fonte pontual: difuso Lambert, especular Phong (reflexo vs. olho), atenuação com a distância.
 vec3 computeLight(vec3 lightPos, vec3 lightColor, vec3 norm, vec3 viewDir, vec3 texColor) {
     vec3 toLight  = lightPos - fragPos;
     float dist    = length(toLight);
     vec3 lightDir = toLight / dist;
 
+    // Difuso: cosseno entre normal e direção da luz, clampado em zero para a face de costas.
     float diff    = max(dot(norm, lightDir), 0.0);
     vec3 diffuse  = diffuseMult * diff * Kd * texColor * lightColor;
 
+    // Especular: quão alinhados estão o olho e o reflexo da luz na superfície, elevado a shininess.
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec      = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
     vec3 specular   = specularMult * spec * Ks * lightColor;
 
-    // Distance attenuation - without it, every light contributes the same
-    // intensity regardless of how close it is, so several nearby interior
-    // lights stack and clip to white instead of producing a visible falloff.
+    // Ganho menor longe da fonte para não saturar tudo em branco quando várias luzes somam perto.
     float attenuation = 1.0 / (1.0 + 0.045 * dist + 0.0075 * dist * dist);
 
-    return attenuation * (diffuse + specular);
+    return attenuation * (diffuse + specular); // atenuação * (difuso + especular)
 }
 
 void main() {
@@ -77,8 +80,7 @@ void main() {
     vec3 texColor = texSample.rgb;
 
     vec3 norm    = normalize(fragNormal);
-    // Some imported meshes (e.g. the temple's wood floor) have inverted
-    // normals. Flip to the visible side so they still receive light.
+    // Corrige normais invertidas em malhas importadas olhando qual lado do triângulo está visível.
     if (!gl_FrontFacing) norm = -norm;
     vec3 viewDir = normalize(viewPos - fragPos);
 
@@ -87,8 +89,10 @@ void main() {
         result += Ka * ambientStrength * ambientColor * texColor;
     }
 
+    // interiorMin e interiorMax delimitam um bloco; dentro vale luz interna, fora vale luz das lanternas.
     bool isInterior = all(greaterThan(fragPos, interiorMin)) && all(lessThan(fragPos, interiorMax));
 
+    // Lanternas voadoras: laço só quando o pixel está fora do bloco interior.
     if (!isInterior) {
         for (int i = 0; i < NUM_LANTERNS; i++) {
             if (lanternOn[i] == 1) {
@@ -96,9 +100,11 @@ void main() {
             }
         }
     }
+    // Primeira luz interna
     if (isInterior && intLightAOn == 1) {
         result += computeLight(intLightAPos, intLightAColor, norm, viewDir, texColor);
     }
+    // Segunda família interna
     if (isInterior && intLightBOn == 1) {
         result += computeLight(intLightB1Pos, intLightBColor, norm, viewDir, texColor);
         result += computeLight(intLightB2Pos, intLightBColor, norm, viewDir, texColor);
@@ -106,8 +112,7 @@ void main() {
     }
 
     if (emissiveOn == 1) {
-        // Modulate by the texture so only the bright parts of the lamp's
-        // own texture (the "bulb") glow strongly, instead of a flat wash.
+        // Ke vezes a cor da textura concentra o brilho nas áreas já claras do mapa.
         result += Ke * texColor;
     }
 

@@ -1,3 +1,26 @@
+"""
+Sistema de Input: Eventos de Teclado e Mouse
+
+Controles de iluminação:
+  1 = ligar/desligar luz ambiente
+  2 = ligar/desligar lanternas exteriores
+  3 = ligar/desligar dragon candle (interior)
+  4 = ligar/desligar hanging lanterns (interior)
+  Z/X = diminuir/aumentar intensidade da luz ambiente
+  C/V = diminuir/aumentar reflexão difusa
+  B/N = diminuir/aumentar reflexão especular
+
+Controles de Câmera:
+  W/A/S/D = movimento horizontal
+  ESPAÇO/SHIFT = cima/baixo
+  MOUSE = rotação da câmera
+  ESC = sair
+
+Opcional:
+  T = modo wireframe (arestas)
+  P = imprimir posição da câmera (para placement de lanternas)
+"""
+
 import math
 
 import glfw
@@ -7,69 +30,54 @@ import state
 
 
 def _fmt(v):
+    """Formata um vetor 3D para impressão no console."""
     return f"({v.x:.2f}, {v.y:.2f}, {v.z:.2f})"
 
 
-def _dump_lights():
-    rig = state.lighting_rig
-    print("[Debug] Light positions/colors:")
-    for i, lantern in enumerate(rig.lantern_lights):
-        print(
-            f"  lantern{i+1}: on={lantern.on} pos={_fmt(lantern.positions[0])} color={lantern.color}"
-        )
-    ia = rig.int_light_a
-    print(
-        f"  int_light_a (dragon candle): on={ia.on} pos={_fmt(ia.positions[0])} color={ia.color}"
-    )
-    ib = rig.int_light_b
-    for i, pos in enumerate(ib.positions):
-        print(
-            f"  int_light_b[{i}] (hanging lantern): on={ib.on} pos={_fmt(pos)} color={ib.color}"
-        )
-    print(
-        f"  interior AABB: min={_fmt(state.interior_min)} max={_fmt(state.interior_max)}"
-    )
-
-
 def key_event(window, key, scancode, action, mods):
+    """Processa eventos de teclado pressionado/liberado."""
     rig = state.lighting_rig
 
     if action == glfw.PRESS:
+        # Registra a tecla como pressionada (para hold keys como Z/X, C/V, B/N)
         state.keys_pressed.add(key)
 
+        # ── Teclas de Iluminação (Toggle) ──────────────────────────────────
         if key == glfw.KEY_1:
+            # Ligar ou desligar luz ambiente
             rig.ambient_on = not rig.ambient_on
-            print(f"[Light] Ambient: {'ON' if rig.ambient_on else 'OFF'}")
+            print(f"[Luz] Ambiente: {'LIGADA' if rig.ambient_on else 'DESLIGADA'}")
+
         elif key == glfw.KEY_2:
+            # Ligar ou desligar todas as 20 lanternas exteriores
             new_state = not rig.lantern_lights[0].on
             for light in rig.lantern_lights:
                 light.on = new_state
-            print(f"[Light] Exterior lanterns (1-4): {'ON' if new_state else 'OFF'}")
+            print(f"[Luz] Lanternas Exteriores: {'LIGADAS' if new_state else 'DESLIGADAS'}")
+
         elif key == glfw.KEY_3:
+            # Ligar ou desligar dragon candle no interior
             rig.int_light_a.on = not rig.int_light_a.on
             print(
-                f"[Light] Interior A (dragon candle): {'ON' if rig.int_light_a.on else 'OFF'}"
+                f"[Luz] Interior A (Dragon Candle): {'LIGADA' if rig.int_light_a.on else 'DESLIGADA'}"
             )
+
         elif key == glfw.KEY_4:
+            # Ligar ou desligar hanging lanterns, três lanternas penduradas
             rig.int_light_b.on = not rig.int_light_b.on
             print(
-                f"[Light] Interior B (hanging lanterns x3): {'ON' if rig.int_light_b.on else 'OFF'}"
+                f"[Luz] Interior B (Hanging Lanterns x3): {'LIGADAS' if rig.int_light_b.on else 'DESLIGADAS'}"
             )
+
         elif key == glfw.KEY_P:
-            # TEMPORARY: print the camera position so it can be used as a
-            # placement point for new lanterns.
+            # Imprime a posição atual da câmera (útil para adicionar novas lanternas)
             cam = state.camera
-            print(f"[Camera] pos={_fmt(cam['pos'])}")
-        elif key == glfw.KEY_M:
-            state.debug_view = not state.debug_view
-            print(
-                f"[Debug] Light markers + interior AABB: {'ON' if state.debug_view else 'OFF'}"
-            )
-            if state.debug_view:
-                _dump_lights()
+            print(f"[Câmera] pos={_fmt(cam['pos'])}")
+
         elif key == glfw.KEY_T:
+            # Modo wireframe: mostra apenas arestas dos triângulos
             state.wireframe_view = not state.wireframe_view
-            print(f"[Debug] Wireframe view: {'ON' if state.wireframe_view else 'OFF'}")
+            print(f"[Wireframe] {'ATIVADO' if state.wireframe_view else 'DESATIVADO'}")
     elif action == glfw.RELEASE:
         state.keys_pressed.discard(key)
 
@@ -79,28 +87,31 @@ def key_event(window, key, scancode, action, mods):
             print(f"[Lighting] diffuse_mult = {rig.diffuse_mult:.3f}")
         elif key in (glfw.KEY_B, glfw.KEY_N):
             print(f"[Lighting] specular_mult = {rig.specular_mult:.3f}")
-        elif key in _BOX_KEYS:
-            print(
-                f"[Debug] interior AABB: min={_fmt(state.interior_min)} max={_fmt(state.interior_max)}"
-            )
 
 
 def mouse_event(window, xpos, ypos):
+    """Calcula rotação da câmera baseado no movimento do mouse."""
     cam = state.camera
+
+    # Na primeira chamada, só registra a posição sem calcular delta
     if cam["first"]:
         cam["last_x"] = xpos
         cam["last_y"] = ypos
         cam["first"] = False
         return
 
+    # Calcula diferença de movimento desde o último frame (sensibilidade: 0.1)
     dx = (xpos - cam["last_x"]) * 0.1
     dy = (cam["last_y"] - ypos) * 0.1
     cam["last_x"] = xpos
     cam["last_y"] = ypos
 
+    # Atualiza ângulos de rotação (yaw = horizontal, pitch = vertical)
     cam["yaw"] += dx
+    # Limita pitch entre -89 e 89 graus (impede virada de cabeça para cima/baixo)
     cam["pitch"] = max(-89.0, min(89.0, cam["pitch"] + dy))
 
+    # Calcula vetor direção da câmera (para onde ela está olhando)
     front = glm.vec3(
         math.cos(math.radians(cam["yaw"])) * math.cos(math.radians(cam["pitch"])),
         math.sin(math.radians(cam["pitch"])),
@@ -110,117 +121,76 @@ def mouse_event(window, xpos, ypos):
 
 
 def process_camera(window, speed):
+    """Processa teclas WASD, ESPAÇO e SHIFT para mover a câmera."""
     cam = state.camera
+    # Calcula o vetor "direita" (perpendicular ao front e up)
     right = glm.normalize(glm.cross(cam["front"], cam["up"]))
 
+    # Movimento para frente/trás (along look direction)
     if glfw.get_key(window, glfw.KEY_W) == glfw.PRESS:
-        cam["pos"] += cam["front"] * speed
+        cam["pos"] += cam["front"] * speed  # W = para frente
     if glfw.get_key(window, glfw.KEY_S) == glfw.PRESS:
-        cam["pos"] -= cam["front"] * speed
-    if glfw.get_key(window, glfw.KEY_A) == glfw.PRESS:
-        cam["pos"] -= right * speed
-    if glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
-        cam["pos"] += right * speed
-    if glfw.get_key(window, glfw.KEY_SPACE) == glfw.PRESS:
-        cam["pos"] += cam["up"] * speed
-    if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
-        cam["pos"] -= cam["up"] * speed
+        cam["pos"] -= cam["front"] * speed  # S = para trás
 
-    # Keep the camera above the ground and below "flying over the temple"
-    # height, regardless of which keys produced the movement.
+    # Movimento lateral (esquerda/direita)
+    if glfw.get_key(window, glfw.KEY_A) == glfw.PRESS:
+        cam["pos"] -= right * speed  # A = para esquerda
+    if glfw.get_key(window, glfw.KEY_D) == glfw.PRESS:
+        cam["pos"] += right * speed  # D = para direita
+
+    # Movimento cima/baixo (vertical)
+    if glfw.get_key(window, glfw.KEY_SPACE) == glfw.PRESS:
+        cam["pos"] += cam["up"] * speed  # ESPAÇO = para cima
+    if glfw.get_key(window, glfw.KEY_LEFT_SHIFT) == glfw.PRESS:
+        cam["pos"] -= cam["up"] * speed  # SHIFT = para baixo
+
+    # Restringe altura da câmera: entre chão (-10) e acima do teto (45)
     cam["pos"].y = max(state.camera_min_y, min(state.camera_max_y, cam["pos"].y))
 
 
-# Held-key adjustment speeds (units per second).
-AMBIENT_SPEED = 0.2
-DIFFUSE_SPEED = 0.5
-SPECULAR_SPEED = 0.5
+# Velocidades de ajuste para teclas pressionadas (unidades por segundo)
+AMBIENT_SPEED = 0.2  # Luz ambiente: muda 0.2 por segundo
+DIFFUSE_SPEED = 0.5  # Reflexão difusa: muda 0.5 por segundo
+SPECULAR_SPEED = 0.5  # Reflexão especular: muda 0.5 por segundo
 
 
 def process_lighting(delta_time):
-    """Continuous ambient/diffuse/specular adjustment while keys are held.
+    """
+    Processa ajustes contínuos de iluminação enquanto as teclas estão pressionadas.
 
-    Z/X -> ambient strength -/+
-    C/V -> diffuse multiplier -/+
-    B/N -> specular multiplier -/+
+    Z e X ajustam intensidade da luz ambiente entre 0.0 e 1.0.
+    C e V ajustam o multiplicador da reflexão difusa entre 0.0 e 3.0.
+    B e N ajustam o multiplicador da reflexão especular entre 0.0 e 3.0.
+
+    Esses ajustes afetam TODOS os objetos da cena em tempo real.
     """
     rig = state.lighting_rig
     keys = state.keys_pressed
 
+    # ── Ajuste luz ambiente ───────────────────────────────────────────────────
     if glfw.KEY_Z in keys:
+        # Z = diminuir intensidade (0.0 = escuro total)
         rig.ambient_strength = max(0.0, rig.ambient_strength - AMBIENT_SPEED * delta_time)
     if glfw.KEY_X in keys:
+        # X = aumentar intensidade (1.0 = máximo brilho ambiente)
         rig.ambient_strength = min(1.0, rig.ambient_strength + AMBIENT_SPEED * delta_time)
 
+    # ── Ajuste reflexão difusa ────────────────────────────────────────────────
+    # Afeta como os materiais refletem luz nos pontos iluminados
     if glfw.KEY_C in keys:
+        # C = diminuir reflexão (0.0 = sem difusa, cena muito escura)
         rig.diffuse_mult = max(0.0, rig.diffuse_mult - DIFFUSE_SPEED * delta_time)
     if glfw.KEY_V in keys:
+        # V = aumentar reflexão (3.0 = muito brilhante)
         rig.diffuse_mult = min(3.0, rig.diffuse_mult + DIFFUSE_SPEED * delta_time)
 
+    # ── Ajuste reflexão especular ─────────────────────────────────────────────
+    # Afeta brilho/shine de superfícies (reflex especular)
     if glfw.KEY_B in keys:
+        # B = diminuir reflexão especular (0.0 = sem brilho)
         rig.specular_mult = max(0.0, rig.specular_mult - SPECULAR_SPEED * delta_time)
     if glfw.KEY_N in keys:
+        # N = aumentar reflexão especular (3.0 = muito brilhante)
         rig.specular_mult = min(3.0, rig.specular_mult + SPECULAR_SPEED * delta_time)
 
 
-# TEMPORARY: interior AABB tuning controls (active while debug view, key M,
-# is on). Move/resize the box live, then read the printed min/max (on key
-# release) and hardcode them, replacing INTERIOR_AABB_MIN/MAX in
-# scene_builder.py.
-#
-# Arrows / Page Up / Page Down -> move the box (X / Z / Y).
-# J/L -> shrink/grow X size, I/K -> grow/shrink Y size, U/O -> shrink/grow Z size.
-# (resizing keeps the box centered in place)
-BOX_MOVE_SPEED  = 2.0
-BOX_SCALE_SPEED = 2.0
-BOX_MIN_SIZE    = 0.2
-
-_BOX_KEYS = {
-    glfw.KEY_LEFT, glfw.KEY_RIGHT, glfw.KEY_UP, glfw.KEY_DOWN,
-    glfw.KEY_PAGE_UP, glfw.KEY_PAGE_DOWN,
-    glfw.KEY_J, glfw.KEY_L, glfw.KEY_I, glfw.KEY_K, glfw.KEY_U, glfw.KEY_O,
-}
-
-
-def process_debug_box(delta_time):
-    if not state.debug_view:
-        return
-
-    keys = state.keys_pressed
-    move  = BOX_MOVE_SPEED * delta_time
-    scale = BOX_SCALE_SPEED * delta_time
-
-    delta = glm.vec3(0.0)
-    if glfw.KEY_RIGHT in keys:
-        delta.x += move
-    if glfw.KEY_LEFT in keys:
-        delta.x -= move
-    if glfw.KEY_DOWN in keys:
-        delta.z += move
-    if glfw.KEY_UP in keys:
-        delta.z -= move
-    if glfw.KEY_PAGE_UP in keys:
-        delta.y += move
-    if glfw.KEY_PAGE_DOWN in keys:
-        delta.y -= move
-    state.interior_min += delta
-    state.interior_max += delta
-
-    def resize(axis, amount):
-        size = state.interior_max[axis] - state.interior_min[axis]
-        amount = max(amount, BOX_MIN_SIZE - size)  # don't shrink past BOX_MIN_SIZE
-        state.interior_min[axis] -= amount / 2.0
-        state.interior_max[axis] += amount / 2.0
-
-    if glfw.KEY_L in keys:
-        resize(0, scale)
-    if glfw.KEY_J in keys:
-        resize(0, -scale)
-    if glfw.KEY_I in keys:
-        resize(1, scale)
-    if glfw.KEY_K in keys:
-        resize(1, -scale)
-    if glfw.KEY_O in keys:
-        resize(2, scale)
-    if glfw.KEY_U in keys:
-        resize(2, -scale)

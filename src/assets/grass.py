@@ -1,4 +1,4 @@
-"""Grass field: the ground plane around the temple/market."""
+"""Grama ao redor do templo/mercado."""
 
 import scene
 from assets import AssetContext, AssetResult
@@ -17,9 +17,7 @@ GRASS_MATERIALS = {
 
 
 def build(ctx: AssetContext) -> AssetResult:
-    """grass_field.obj was exported pre-baked to its true world position (in
-    the same axis convention as temple.obj), so it only needs to be shifted
-    by the same offset that recentered the temple to the origin."""
+    """OBJ já no mundo (como o templo); só aplica o mesmo deslocamento do recenter."""
     pos = tuple(-c for c in ctx.temple_center)
     objects = scene.load_simple_object(
         GRASS_DIR,

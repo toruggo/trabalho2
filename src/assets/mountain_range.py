@@ -1,5 +1,4 @@
-"""Distant mountain ranges surrounding the temple grounds: one pre-baked mesh
-placed at multiple instance transforms via matrizes.place_baked_instance."""
+"""Montanhas ao fundo: malha pré-assada em várias posições (place_baked_instance)."""
 
 import matrizes
 import scene
@@ -15,9 +14,7 @@ MOUNTAIN_RANGE_MATERIALS = {
     ),
 }
 
-# mountain_range.obj was exported pre-baked to mountain_range.003's world
-# transform; the other 3 instances reuse that same mesh placed via
-# place_baked_instance().
+# Malha exportada como a instância .003; as outras reutilizam com place_baked_instance.
 MOUNTAIN_RANGE_OBJECTS = [
     dict(
         dir="objects/mountain_range",

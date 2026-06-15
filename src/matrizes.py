@@ -1,10 +1,17 @@
+"""
+Funções auxiliares de álgebra linear para OpenGL.
+
+Montagem de matriz modelo TRS, matriz de normais, conversão de coordenadas
+Blender para a convenção da cena, e posição de luz ligada a um SceneObject.
+"""
+
 import math
 
 import glm
 
 
 def model_matrix(pos=(0.0, 0.0, 0.0), rot_deg=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 1.0)):
-    """Build a TRS model matrix: translate * rotateZ * rotateY * rotateX * scale."""
+    """Retorna matriz 4x4 modelo: translação, rotações Z, Y, X em graus, escala."""
     m = glm.mat4(1.0)
     m = glm.translate(m, glm.vec3(*pos))
     if rot_deg[2]:
@@ -18,34 +25,43 @@ def model_matrix(pos=(0.0, 0.0, 0.0), rot_deg=(0.0, 0.0, 0.0), scale=(1.0, 1.0, 
 
 
 def normal_matrix(model):
+    """Matriz 3x3 para transformar normais no espaço mundo sob escala não uniforme.
+
+    Usa transposta da inversa da parte linear da matriz modelo, padrão em
+    pipeline programável para manter os produtos escalares da iluminação corretos.
+    """
     return glm.transpose(glm.inverse(glm.mat3(model)))
 
 
 def light_world_pos(obj):
-    """World-space position of a light-emitting SceneObject's light_offset."""
+    """Posição mundial do ponto de luz associado a um SceneObject.
+
+    Aplica a matriz modelo do objeto ao vetor light_offset em coordenadas locais,
+    típico para alinhar a luz à chama ou ao bulbo da malha exportada.
+    """
     return glm.vec3(obj.model * glm.vec4(obj.light_offset, 1.0))
 
 
 def blender_to_scene_pos(x, y, z):
-    """Convert a Blender (Z-up) world position to our Y-up scene coordinates.
+    """Converte um ponto do mundo Blender, eixo Z para cima, para nossa cena com eixo Y para cima.
 
-    Equivalent to a -90 deg rotation about X: (x, y, z) -> (x, z, -y).
-    A Blender Euler Z-rotation maps directly to a scene Y-rotation under
-    this same conversion, so rot_deg=(0, blender_z_rotation, 0) lines up.
+    Equivale a rotação de -90 graus em torno de X: entrada x, y, z
+    vira saída x, z, menos y. Rotações Euler em Z no Blender alinham com rotação
+    em Y na cena quando você usa essa conversão nas instâncias.
     """
     return (x, z, -y)
 
 
 def place_baked_instance(baked_pos, baked_rot_z_deg, target_pos, target_rot_z_deg,
                           baked_scale, target_scale, temple_center):
-    """Compute (pos, rot_deg, scale) for `instances=` to place a copy of a
-    pre-baked mesh — exported at `baked_pos`/`baked_rot_z_deg`/`baked_scale`
-    in Blender world coordinates — at `target_pos`/`target_rot_z_deg`/
-    `target_scale`, relative to the recentered temple (`temple_center`).
+    """Monta posição, rotação em graus e escala para instanciar malha já assada no Blender.
 
-    Handles a Blender Z-axis (-> our Y-axis) rotation difference and a
-    uniform scale ratio between the baked instance and the target instance.
-    Pass target == baked for the baked instance itself (identity transform).
+    A malha veio exportada com posição, rotação em Z e escala fixas no arquivo.
+    Esta função calcula o tripleto pos, rot_deg, scale para colocar uma cópia
+    em outro alvo no mundo Blender, depois expresso na cena recenterada pelo
+    temple_center. Trata diferença de rotação em torno do eixo vertical e razão
+    de escala uniforme entre instância assada e alvo. Se alvo e assado forem
+    iguais, o resultado é a identidade na prática.
     """
     Q  = blender_to_scene_pos(*baked_pos)
     Q0 = blender_to_scene_pos(*target_pos)

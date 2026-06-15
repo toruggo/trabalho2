@@ -8,9 +8,8 @@ import geometry
 import matrizes
 from lighting import Light
 
-# Generic material fallback for parts/materials with no explicit spec.
-# Ka == Kd: ambient reflectance mirrors diffuse reflectance, so the ambient
-# strength slider (req 4) has a visible effect across its whole 0-1 range.
+# Material padrão quando o .obj não traz spec; Ka = Kd para o slider de ambiente
+# ainda mudar algo visível entre 0 e 1.
 DEFAULT_MATERIAL = dict(
     Ka=(0.7, 0.7, 0.7), Kd=(0.7, 0.7, 0.7), Ks=(0.1, 0.1, 0.1), shininess=8.0
 )
@@ -34,16 +33,13 @@ class SceneObject:
 
 
 def load_temple(temple_dir, materials, material_textures, gold_color=(204, 166, 26)):
-    """Load <temple_dir>/temple.obj as one SceneObject per material.
+    """Carrega temple.obj: um SceneObject por material.
 
-    `materials` maps material name -> {Ka, Kd, Ks, shininess, alpha}
-    (req 7 — hand-set, not read from the .mtl). `material_textures` maps
-    material name -> texture path relative to `temple_dir`; materials with no
-    entry get a flat `gold_color` solid texture (e.g. Procedural_Gold).
+    materials: nome -> Ka, Kd, Ks, shininess, alpha (no código, não no .mtl).
+    material_textures: nome -> caminho da textura; sem entrada usa textura sólida gold_color.
 
-    Returns (objects, extent, raw_center) — raw_center is the temple's raw
-    (pre-recenter) bbox center in the OBJ export's own coordinate frame, used
-    as the reference origin when placing other objects relative to the temple.
+    Retorna (objects, extent, raw_center): raw_center é o centro da bbox antes
+    do recenter, referência para posicionar os outros assets.
     """
     raw_groups, extent, raw_center = geometry.load_obj(
         os.path.join(temple_dir, "temple.obj")
@@ -98,31 +94,19 @@ def load_simple_object(
     pivot="center",
     lights=None,
 ):
-    """Generic loader for a single-object OBJ folder (dragon_pillar, jade_cube,
-    sakura_tree, grass_field, and light-emitting objects like flying_lantern).
+    """Carrega um OBJ simples (grama, muro, sakura, lanternas, etc.).
 
-    `materials` maps material name -> {texture, alpha_texture, solid_color,
-    Ka, Kd, Ks, shininess}. Missing entries/keys fall back to DEFAULT_MATERIAL
-    and a flat gray solid-color texture.
+    materials: nome -> textura, alpha, cor sólida, Ka/Kd/Ks/shininess; falta vira DEFAULT_MATERIAL.
 
-    `instances`, if given, is a list of (pos, rot_deg, scale) tuples; the OBJ
-    geometry/textures are loaded once and shared across one SceneObject set
-    per instance (e.g. the 26 sakura trees). Otherwise a single instance at
-    `pos`/`rot_deg`/`scale` is created.
+    instances: lista de (pos, rot_deg, scale); malha carregada uma vez, vários SceneObjects.
+    Sem lista, uma só instância em pos / rot_deg / scale.
 
-    `recenter=False` keeps the OBJ's raw exported coordinates (no
-    auto-centering to the mesh's own bbox) — use this for objects whose
-    geometry was exported already baked to world position (e.g. grass_field),
-    so `pos` becomes a pure offset relative to another object's raw frame.
+    recenter=False: mantém coordenadas do export (malha já no mundo, ex. grama);
+    pos vira só o deslocamento do recenter do templo.
 
-    `pivot='base'` centers X/Z but anchors Y at the mesh's bbox minimum, so
-    the local origin sits at ground level — use this for props (e.g. trees)
-    whose Blender pivot is at their base, so `pos`/`instances` translations
-    line up with object_transforms.md positions without sinking into the floor.
+    pivot='base': recenter em X/Z e ancora Y no mínimo da bbox (árvores no chão).
 
-    `lights`, if given, is a list of `lighting.Light` instances, one per
-    instance, used to gate that instance's emissive (Ke) parts so a lamp's
-    glow turns off with its light (req 3).
+    lights: uma Light por instância; liga emissiveOn do Ke ao interruptor da luz.
     """
     materials = materials or {}
 

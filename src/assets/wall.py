@@ -1,4 +1,4 @@
-"""Courtyard wall: all wall segments pre-baked into one mesh."""
+"""Muro do pátio: um único OBJ com todos os trechos já posicionados."""
 
 import scene
 from assets import AssetContext, AssetResult
@@ -17,9 +17,7 @@ WALL_MATERIALS = {
 
 
 def build(ctx: AssetContext) -> AssetResult:
-    """wall.obj was exported the same way as grass_field.obj: every wall
-    piece already sits at its true world position, so it only needs the same
-    temple-recentering offset."""
+    """Mesmo esquema da grama: peças já no mundo; só compensa o recenter do templo."""
     pos = tuple(-c for c in ctx.temple_center)
     objects = scene.load_simple_object(
         WALL_DIR,

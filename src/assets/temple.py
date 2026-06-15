@@ -1,12 +1,10 @@
-"""Temple structure: the main building, loaded as one SceneObject per
-material, with hand-set lighting params (req 7) instead of the .mtl's."""
+"""Templo: um SceneObject por material; Ka/Kd/Ks no código, não no .mtl."""
 
 import scene
 
 TEMPLE_DIR = "objects/temple"
 
-# Only map_Kd matters for our shader; Procedural_Gold gets a solid color
-# texture (see scene.load_temple's gold_color).
+# Só map_Kd importa para nós; Procedural_Gold usa textura sólida (gold_color em load_temple).
 MATERIAL_TEXTURES = {
     "Black_tiles": "textures/tiles07_basecolor_diffuse.jpg",
     "Black_wood": "textures/wood03_diffuse.jpg",
@@ -77,7 +75,5 @@ TEMPLE_MATERIALS = {
 
 
 def build():
-    """Load the temple. Returns (objects, extent, raw_center) — raw_center is
-    the temple's raw (pre-recenter) bbox center, used as the reference origin
-    for placing every other object (see assets.AssetContext.temple_center)."""
+    """Carrega o templo. Retorna (objects, extent, raw_center) para o AssetContext."""
     return scene.load_temple(TEMPLE_DIR, TEMPLE_MATERIALS, MATERIAL_TEXTURES)

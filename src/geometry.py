@@ -1,24 +1,33 @@
+"""
+Leitura de malhas OBJ, buffers na GPU e texturas.
+
+Sem usar pipeline fixo: só VBO, textura 2D, cubemap e atributos compatíveis
+com o vertex shader da cena principal.
+"""
+
 import ctypes
 
 from OpenGL.GL import *
 import numpy as np
 from PIL import Image
 
+# Limite de lado da textura para não estourar memória em assets muito grandes.
 MAX_TEX_SIZE = 2048
 
 
 def load_obj(path, recenter=True, pivot='center'):
-    """Parse OBJ with multi-material support via usemtl.
-    Returns ([(mat_name, vertices_float32), ...], longest_extent, raw_bbox_center).
-    Positions are centered at origin unless recenter=False, in which case the
-    raw (exported) coordinates are kept and raw_bbox_center is the offset that
-    would otherwise have been subtracted.
+    """Lê um arquivo OBJ com vários materiais via usemtl.
 
-    `pivot` controls where that offset sits relative to the bbox:
-    - 'center' (default): offset = bbox center on all axes.
-    - 'base': offset = bbox center on X/Z but bbox *minimum* on Y, so the
-      object's local origin lands at ground level (matches Blender objects
-      whose pivot is at the base, e.g. trees/props standing on the floor).
+    Retorna uma lista de pares nome do material e vértices em float32 no layout
+    intercalado posição três floats, UV dois floats, normal três floats por vértice,
+    triangulado a partir de faces poligonais. Retorna também a maior extensão da
+    caixa limitadora e o centro usado no recenter.
+
+    Se recenter for True, subtrai o centro calculado das posições. Se for False,
+    mantém coordenadas brutas do export e center indica o que teria sido subtraído.
+
+    pivot center usa o centro da caixa nos três eixos. pivot base usa centro em X
+    e Z mas mínimo em Y para ancorar o objeto no chão, útil para árvores e props.
     """
     positions     = []
     uvs           = []
@@ -70,6 +79,7 @@ def load_obj(path, recenter=True, pivot='center'):
     for mat_name, faces in groups:
         verts = []
         for face in faces:
+            # Triangulação em leque: primeiro vértice fixo, varre o polígono
             for i in range(1, len(face) - 1):
                 for vi in [face[0], face[i], face[i + 1]]:
                     verts.extend(pos_arr[vi[0]])
@@ -81,7 +91,7 @@ def load_obj(path, recenter=True, pivot='center'):
 
 
 def merge_groups(groups):
-    """Concatenate vertex arrays that share the same material name."""
+    """Junta em um único array todos os grupos que compartilham o mesmo nome de material."""
     merged = {}
     for mat, verts in groups:
         if mat in merged:
@@ -92,6 +102,7 @@ def merge_groups(groups):
 
 
 def upload_vbo(vertices):
+    """Cria um VBO GL_ARRAY_BUFFER e copia o array numpy de vértices estático."""
     vbo = glGenBuffers(1)
     glBindBuffer(GL_ARRAY_BUFFER, vbo)
     glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
@@ -99,6 +110,10 @@ def upload_vbo(vertices):
 
 
 def bind_vbo(vbo, pos_loc, uv_loc, norm_loc):
+    """Liga o VBO aos três atributos do shader principal: posição, UV, normal.
+
+    Stride oito floats de trinta e dois bits: três pos, dois UV, três normal.
+    """
     F      = 4
     stride = 8 * F
     glBindBuffer(GL_ARRAY_BUFFER, vbo)
@@ -108,6 +123,7 @@ def bind_vbo(vbo, pos_loc, uv_loc, norm_loc):
 
 
 def load_texture(path):
+    """Carrega imagem RGBA do disco, limita tamanho, inverte eixo Y e envia para textura 2D."""
     Image.MAX_IMAGE_PIXELS = None
     img = Image.open(path).convert("RGBA")
     if img.width > MAX_TEX_SIZE or img.height > MAX_TEX_SIZE:
@@ -126,8 +142,9 @@ def load_texture(path):
 
 
 def load_texture_with_alpha(color_path, alpha_path):
-    """Load an RGB color texture and merge in a separate grayscale alpha mask
-    (e.g. Sakura.png + Sakura_Opacity.png) for cutout transparency.
+    """Mescla textura RGB com máscara alpha em escala de cinza em um único RGBA.
+
+    Útil para folhas ou sakura com arquivo de opacidade separado.
     """
     Image.MAX_IMAGE_PIXELS = None
     img   = Image.open(color_path).convert("RGB")
@@ -152,6 +169,7 @@ def load_texture_with_alpha(color_path, alpha_path):
 
 
 def load_cubemap(directory):
+    """Carrega seis faces PNG em um GL_TEXTURE_CUBE_MAP para o skybox."""
     import os
     faces = [
         (GL_TEXTURE_CUBE_MAP_POSITIVE_X, 'px.png'),
@@ -177,7 +195,7 @@ def load_cubemap(directory):
 
 
 def make_solid_texture(r, g, b):
-    """Upload a 1x1 RGBA texture for materials with no image (e.g. Procedural_Gold)."""
+    """Textura 2D 1x1 em RGBA com cor sólida, para materiais sem arquivo de imagem."""
     data = np.array([[[r, g, b, 255]]], dtype=np.uint8)
     tex  = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, tex)

@@ -1,5 +1,10 @@
-"""Shader pass setup and per-frame draw/upload helpers: main (temple/scene),
-skybox, debug (interior AABB wireframe, key M), and glow (lantern halos)."""
+"""
+Montagem dos passes de renderização e funções auxiliares por frame.
+
+Centraliza compilação dos shaders, localização de uniforms, VBOs compartilhados
+e desenho ou upload para: cena principal com Phong, skybox em cubemap e halos
+aditivos das lanternas voadoras.
+"""
 
 import ctypes
 from dataclasses import dataclass
@@ -12,8 +17,7 @@ from shader_s import Shader
 import geometry
 from lighting import NUM_LANTERNS, LightingRig
 
-# Unit cube — 36 positions that serve as cubemap direction vectors. Shared by
-# the skybox and the debug AABB wireframe.
+# Cubo unitário com 36 vértices em triângulos. Malha do skybox em cubemap.
 CUBE_VERTS = np.array(
     [
         -1, 1, -1, -1, -1, -1, 1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1,
@@ -26,8 +30,8 @@ CUBE_VERTS = np.array(
     dtype=np.float32,
 )
 
-# Camera-facing quad (in [-0.5, 0.5] local space) used to draw glow halos
-# around lamp light sources. Billboarded in glow.vs via cameraRight/cameraUp.
+# Quad local entre menos meio e mais meio, usado como billboard para o halo.
+# O glow.vs usa cameraRight e cameraUp para orientar o quad na tela.
 GLOW_QUAD_VERTS = np.array(
     [-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5],
     dtype=np.float32,
@@ -35,11 +39,14 @@ GLOW_QUAD_VERTS = np.array(
 
 
 def set3f(loc, v):
+    """Atalho para glUniform3f com glm.vec3."""
     glUniform3f(loc, v.x, v.y, v.z)
 
 
 @dataclass
 class MainPass:
+    """Shader principal da cena, atributos posição UV normal e dicionário de locs."""
+
     shader: Shader
     program: int
     pos_loc: int
@@ -50,6 +57,8 @@ class MainPass:
 
 @dataclass
 class SkyboxPass:
+    """Cubemap de céu, VBO do cubo e textura GL_TEXTURE_CUBE_MAP."""
+
     shader: Shader
     program: int
     pos_loc: int
@@ -59,16 +68,9 @@ class SkyboxPass:
 
 
 @dataclass
-class DebugPass:
-    shader: Shader
-    program: int
-    pos_loc: int
-    vbo: int
-    locs: dict
-
-
-@dataclass
 class GlowPass:
+    """Billboard em triângulos para brilho aditivo ao redor de cada lanterna ligada."""
+
     shader: Shader
     program: int
     pos_loc: int
@@ -77,6 +79,7 @@ class GlowPass:
 
 
 def build_main_pass() -> MainPass:
+    """Compila vertex e fragment da cena, habilita atributos e cacheia todos os uniforms."""
     shader = Shader("shaders/vertex_shader.vs", "shaders/fragment_shader.fs")
     shader.use()
     prog = shader.getProgram()
@@ -134,6 +137,7 @@ def build_main_pass() -> MainPass:
 
 
 def build_skybox_pass(skybox_dir) -> SkyboxPass:
+    """Cubo em VBO, cubemap carregado da pasta, sampler na unidade zero."""
     shader = Shader("shaders/skybox.vs", "shaders/skybox.fs")
     prog = shader.getProgram()
     shader.use()
@@ -155,23 +159,8 @@ def build_skybox_pass(skybox_dir) -> SkyboxPass:
     return SkyboxPass(shader, prog, pos_loc, vbo, cubemap_tex, locs)
 
 
-def build_debug_pass(cube_vbo) -> DebugPass:
-    """Reuses the skybox pass's cube VBO (also a unit cube) for the interior
-    AABB wireframe."""
-    shader = Shader("shaders/debug.vs", "shaders/debug.fs")
-    prog = shader.getProgram()
-    pos_loc = glGetAttribLocation(prog, "position")
-    glEnableVertexAttribArray(pos_loc)
-    locs = {
-        "model": glGetUniformLocation(prog, "model"),
-        "view": glGetUniformLocation(prog, "view"),
-        "projection": glGetUniformLocation(prog, "projection"),
-        "color": glGetUniformLocation(prog, "color"),
-    }
-    return DebugPass(shader, prog, pos_loc, cube_vbo, locs)
-
-
 def build_glow_pass() -> GlowPass:
+    """Quad em VBO e uniforms para billboard e cor do halo."""
     shader = Shader("shaders/glow.vs", "shaders/glow.fs")
     prog = shader.getProgram()
     pos_loc = glGetAttribLocation(prog, "position")
@@ -195,6 +184,11 @@ def build_glow_pass() -> GlowPass:
 
 
 def upload_lighting_uniforms(locs, rig: LightingRig, interior_min, interior_max):
+    """Envia ao shader principal todo o estado de luz do frame atual.
+
+    Inclui ambiente, multiplicadores difuso e especular, caixa interior,
+    array de lanternas e luzes internas A e B com as três posições de B.
+    """
     glUniform1i(locs["ambientOn"], int(rig.ambient_on))
     glUniform1f(locs["ambientStrength"], rig.ambient_strength)
     glUniform3f(locs["ambientColor"], *rig.ambient_color)
@@ -221,11 +215,13 @@ def upload_lighting_uniforms(locs, rig: LightingRig, interior_min, interior_max)
 
 
 def draw_skybox(pass_: SkyboxPass, view, projection):
-    """Drawn last; the xyww trick (stripping translation + GL_LEQUAL) keeps
-    it pinned at depth 1.0, behind everything else."""
+    """Desenha o cubemap atrás da geometria usando view só com rotação e teste GL_LEQUAL.
+
+    O vertex shader usa xyww para fixar profundidade máxima e o cubo envolve a câmera.
+    """
     glDepthFunc(GL_LEQUAL)
     pass_.shader.use()
-    sky_view = glm.mat4(glm.mat3(view))  # strip translation
+    sky_view = glm.mat4(glm.mat3(view))  # só rotação: cubo gira com a cabeça, sem translação
     glUniformMatrix4fv(pass_.locs["view"], 1, GL_FALSE, glm.value_ptr(sky_view))
     glUniformMatrix4fv(pass_.locs["projection"], 1, GL_FALSE, glm.value_ptr(projection))
     glBindBuffer(GL_ARRAY_BUFFER, pass_.vbo)
@@ -236,26 +232,11 @@ def draw_skybox(pass_: SkyboxPass, view, projection):
     glDepthFunc(GL_LESS)
 
 
-def draw_debug_aabb(pass_: DebugPass, view, projection, center, half_extent, color, restore_mode=GL_FILL):
-    pass_.shader.use()
-    glUniformMatrix4fv(pass_.locs["view"], 1, GL_FALSE, glm.value_ptr(view))
-    glUniformMatrix4fv(pass_.locs["projection"], 1, GL_FALSE, glm.value_ptr(projection))
-    glBindBuffer(GL_ARRAY_BUFFER, pass_.vbo)
-    glVertexAttribPointer(pass_.pos_loc, 3, GL_FLOAT, GL_FALSE, 12, ctypes.c_void_p(0))
-
-    m = glm.translate(glm.mat4(1.0), center)
-    m = glm.scale(
-        m, half_extent if isinstance(half_extent, glm.vec3) else glm.vec3(half_extent)
-    )
-    glUniformMatrix4fv(pass_.locs["model"], 1, GL_FALSE, glm.value_ptr(m))
-    glUniform3f(pass_.locs["color"], *color)
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-    glDrawArrays(GL_TRIANGLES, 0, 36)
-    glPolygonMode(GL_FRONT_AND_BACK, restore_mode)
-
-
 def draw_glow_halos(pass_: GlowPass, view, projection, cam, lantern_lights, color, size):
+    """Para cada lanterna ligada, desenha um quad billboard com blend aditivo.
+
+    Usa vetores ortonormais da câmera para o glow.vs montar o quad de frente para a tela.
+    """
     pass_.shader.use()
     glUniformMatrix4fv(pass_.locs["view"], 1, GL_FALSE, glm.value_ptr(view))
     glUniformMatrix4fv(pass_.locs["projection"], 1, GL_FALSE, glm.value_ptr(projection))

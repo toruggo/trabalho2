@@ -1,16 +1,13 @@
-"""Assembles the full scene: loads the temple first (it defines the
-recentering origin and overall scale), then every other asset relative to it,
-collecting their objects/behaviors into one SceneData."""
+"""Monta a cena: carrega o templo primeiro (origem e escala), depois os demais
+assets e reúne objetos e comportamentos em um SceneData."""
 
 from dataclasses import dataclass
 
 from assets import AssetContext, flying_lantern, grass, hanging_lantern, market, mountain_range, sakura, temple, wall, dragon_candle
 from lighting import LightingRig
 
-# World-space AABB marking the temple interior, hand-tuned with the debug
-# box tool (key M + arrows/J/L/I/K/U/O) to snugly fit the interior room
-# (floor to ceiling, wall to wall) — used to mask interior-only/exterior-only
-# lights (req 1 / req 2).
+# AABB mundo do interior do templo (ajuste manual). O fragment usa isso para
+# somar só luz de fora ou só luz de dentro conforme o pixel.
 INTERIOR_AABB_MIN = (-3.55, -2.81, -24.33)
 INTERIOR_AABB_MAX = (4.40, 1.43, 5.21)
 
@@ -64,8 +61,8 @@ def build_scene(rig: LightingRig) -> SceneData:
     objects = temple_objects + [obj for r in results for obj in r.objects]
     behaviors = [b for r in results for b in r.behaviors]
 
-    # Translucent parts (e.g. paper lantern shells) are drawn in a separate
-    # pass, after everything opaque, with blending on and depth writes off.
+    # Objetos translúcidos (ex.: papel de lanterna): passo depois dos opacos,
+    # com blend e sem escrever profundidade.
     opaque_objects = [o for o in objects if o.alpha >= 1.0]
     translucent_objects = [o for o in objects if o.alpha < 1.0]
 

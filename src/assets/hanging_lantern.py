@@ -1,5 +1,4 @@
-"""Hanging lanterns: 3 instances sharing one pre-baked mesh, each emitting its
-own copy of the shared `intLightB` light (req 2)."""
+"""Lanternas pendentes: 3 instâncias da mesma malha; cada uma acopla uma posição de int_light_b."""
 
 import os
 
@@ -11,10 +10,7 @@ from assets import AssetContext, AssetResult
 HANGING_LANTERN_DIR = "objects/hanging_lantern"
 
 HANGING_LANTERN_MATERIALS = {
-    # Paper shell — translucent so the lantern reads as lit from within
-    # rather than a solid block. No Ke: the whole shell glowing doesn't read
-    # well (no separate small "lamp" part), so int_light_b stays an
-    # invisible emitter for now.
+    # Papel translúcido; sem Ke (a malha inteira brilhando não lembra lâmpada pequena).
     "TextureMaterial_54": dict(
         texture="Image_61.png",
         Ka=(0.65, 0.45, 0.25),
@@ -25,11 +21,7 @@ HANGING_LANTERN_MATERIALS = {
     ),
 }
 
-# (x, y, z) in Blender (Z-up) world coordinates, from scene.json, for the
-# hanging_lantern / .001 / .002 objects. hanging_lantern.obj was exported
-# pre-baked as "o hanging_lantern.001" (geometry + rotation + scale already
-# applied), so the other instances reuse that same mesh shifted by the
-# position delta to hanging_lantern.001 (rotation/scale match across all 3).
+# Posições Blender (Z up) do scene.json. OBJ assado no .001; as outras são deltas da mesma malha.
 HANGING_LANTERN_TRANSFORMS = [
     (-0.020896494388580322, 8.019309997558594, 11.573162078857422),  # hanging_lantern
     (
@@ -43,9 +35,7 @@ HANGING_LANTERN_ORIGIN_INDEX = 1
 
 
 def build(ctx: AssetContext) -> AssetResult:
-    """int_light_b (req 2) is carried by these objects — each of the 3
-    instances emits its own copy of the same-colored light (toggled
-    together), light_offset is the mesh's own raw bbox center."""
+    """Alimenta int_light_b: três luzes da mesma cor, interruptor único; light_offset = centro da bbox."""
     origin = HANGING_LANTERN_TRANSFORMS[HANGING_LANTERN_ORIGIN_INDEX]
     instances = []
     for bx, by, bz in HANGING_LANTERN_TRANSFORMS:
@@ -67,8 +57,7 @@ def build(ctx: AssetContext) -> AssetResult:
         lights=[ctx.rig.int_light_b] * len(instances),
     )
 
-    # One SceneObject per instance is enough to compute that instance's
-    # light position (model + light_offset are shared across its parts).
+    # Um objeto representativo por instância basta para atualizar a posição da luz.
     n_parts = len(objects) // len(instances)
     for i, hanging_obj in enumerate(objects[::n_parts]):
         ctx.rig.int_light_b.positions[i] = matrizes.light_world_pos(hanging_obj)

@@ -1,5 +1,4 @@
-"""Market stalls/props: each a pre-baked mesh placed at one or more instance
-transforms via matrizes.place_baked_instance."""
+"""Barracas e objetos do mercado: malhas pré-assadas em uma ou mais instâncias (place_baked_instance)."""
 
 import matrizes
 import scene
@@ -89,11 +88,8 @@ TABLES_MATERIALS = {
     ),
 }
 
-# Each mesh was exported pre-baked to one specific scene.json instance's world
-# transform ("baked": position, rotation_z_deg, scale, all in Blender world
-# coordinates). `targets` lists every instance to place using that mesh;
-# matrizes.place_baked_instance() compensates for any Y-rotation / uniform-
-# scale difference between `baked` and each target.
+# Cada entrada: malha assada numa instância do Blender (pos, rotação Z, escala).
+# targets = demais cópias; place_baked_instance corrige rotação vertical e escala.
 MARKET_OBJECTS = [
     dict(
         dir="objects/fish_tent",

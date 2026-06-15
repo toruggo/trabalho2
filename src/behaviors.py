@@ -1,5 +1,9 @@
-"""Generic per-object animation behaviors, advanced once per frame via
-update(delta_time) (see main.py's render loop)."""
+"""
+Comportamentos de animação por objeto, avançados uma vez por frame.
+
+O loop em main chama update em cada behavior depois de processar input.
+Aqui ficam utilitários de sorteio e o DriftBehavior das lanternas voadoras.
+"""
 
 import random
 
@@ -7,6 +11,7 @@ import glm
 
 
 def _random_drift_dir():
+    """Vetor unitário aleatório em 3D para a direção inicial da deriva."""
     d = glm.vec3(
         random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0), random.uniform(-1.0, 1.0)
     )
@@ -14,7 +19,7 @@ def _random_drift_dir():
 
 
 def random_point_in_sphere(radius):
-    """Uniformly sample a point within a sphere of the given radius (rejection sampling)."""
+    """Ponto aleatório uniforme dentro da esfera de raio dado, por rejeição."""
     while True:
         p = glm.vec3(
             random.uniform(-1.0, 1.0),
@@ -26,15 +31,16 @@ def random_point_in_sphere(radius):
 
 
 class DriftBehavior:
-    """Slow wandering animation: drifts in a straight line from `base`,
-    "ping-ponging" (reflecting) off the boundary of a sphere of `radius`
-    around `base`. Starts at a random point within that sphere (and with a
-    random direction), so multiple instances are out of phase from the start.
+    """Deriva lenta em linha reta a partir de base, refletindo na borda de uma esfera.
 
-    Applies the resulting translation to every SceneObject in `objects`
-    (they share one model matrix, e.g. the parts of one flying lantern
-    instance) and keeps `light`'s first position in sync, using the first
-    object's `light_offset`.
+    O centro da esfera é base e o raio é radius. A cada frame soma speed na
+    direção dir. Ao ultrapassar o raio, reflete a direção com reflect e mantém
+    o offset na superfície da esfera. O offset inicial é aleatório dentro da
+    esfera para várias lanternas não ficarem sincronizadas.
+
+    Atualiza a matriz modelo de todos os SceneObject em objects, que compartilham
+    o mesmo deslocamento por instância, e sincroniza light.positions zero com
+    a posição mundial do ponto de luz usando light_offset do primeiro objeto.
     """
 
     def __init__(self, objects, light, base, radius, speed):
@@ -53,15 +59,15 @@ class DriftBehavior:
         dist = glm.length(self.offset)
         if dist > self.radius and dist > 0.0:
             normal = self.offset / dist
-            # Snap back onto the boundary before reflecting. Without this, a
-            # near-radial bounce can leave the object just outside the radius
-            # every frame, flipping `dir` back and forth and making it appear
-            # stuck in place.
+            # Recoloca o ponto exatamente na casca antes de refletir. Sem isso,
+            # um quase tangente pode ficar alternando fora e dentro do raio a
+            # cada frame e a lanterna parece travada.
             self.offset = normal * self.radius
             self.dir = glm.reflect(self.dir, normal)
         self._apply()
 
     def _apply(self):
+        """Aplica translação base mais offset na malha e na posição da luz pontual."""
         model = glm.translate(glm.mat4(1.0), self.base + self.offset)
         for obj in self.objects:
             obj.model = model

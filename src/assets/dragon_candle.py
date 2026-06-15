@@ -1,5 +1,4 @@
-"""Dragon candle: single pre-baked mesh ("o dragon_candles.002") that carries
-the interior `intLightA` light (req 2)."""
+"""Vela dragão: malha única pré-assada com int_light_a."""
 
 import os
 
@@ -11,9 +10,7 @@ from assets import AssetContext, AssetResult
 DRAGON_CANDLE_DIR = "objects/dragon_candle"
 
 DRAGON_CANDLE_MATERIALS = {
-    # No Ke: unlike the flying lantern, the whole candle mesh would glow
-    # (there's no separate small "flame" part), which doesn't read well.
-    # int_light_a stays an invisible emitter for now.
+    # Sem Ke: a malha toda brilhando não parece chama; a luz fica só no rig.
     "TextureMaterial_55": dict(
         texture="Image_62.png",
         Ka=(0.55, 0.45, 0.30),
@@ -25,8 +22,7 @@ DRAGON_CANDLE_MATERIALS = {
 
 
 def build(ctx: AssetContext) -> AssetResult:
-    """int_light_a (req 2) is carried by this object — light_offset is the
-    mesh's own raw bbox center, i.e. roughly the candle flame."""
+    """Liga int_light_a; light_offset ≈ centro da bbox (chama)."""
     pos = tuple(-c for c in ctx.temple_center)
     _, _, glow_offset = geometry.load_obj(
         os.path.join(DRAGON_CANDLE_DIR, "dragon_candle.obj"), recenter=False

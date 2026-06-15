@@ -1,5 +1,4 @@
-"""Sakura trees: 26 instances sharing one mesh/texture set, scattered around
-the temple grounds."""
+"""Sakuras: 26 cópias da mesma malha/textura ao redor do templo."""
 
 import matrizes
 import scene
@@ -25,9 +24,7 @@ SAKURA_MATERIALS = {
     ),
 }
 
-# (x, y, z, rotation_z_deg) in Blender (Z-up) world coordinates, from
-# object_transforms.md. Position is converted via matrizes.blender_to_scene_pos
-# and rotation_z maps directly onto a scene Y-rotation.
+# (x, y, z, rotação Z Blender) — ver object_transforms.md; posição via blender_to_scene_pos.
 SAKURA_TRANSFORMS = [
     (-12.923817, -21.774605, 0.428387, -74.919853),
     (-12.792014, -28.013264, 0.428387, -74.919853),
@@ -60,9 +57,7 @@ SAKURA_SCALE = 8.482910
 
 
 def build(ctx: AssetContext) -> AssetResult:
-    """sakura_tree.obj is a small object-space asset; each instance's Blender
-    world position is converted to scene coords relative to the temple's
-    Blender-world position (so it lines up with the recentered temple)."""
+    """OBJ em espaço de objeto; cada instância converte posição Blender para a cena recenterada."""
     temple_center_blender = (
         ctx.temple_center[0],
         -ctx.temple_center[2],

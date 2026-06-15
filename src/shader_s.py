@@ -1,3 +1,5 @@
+"""Carrega arquivos .vs e .fs do disco, compila, linka em um programa e expõe use()/getProgram()."""
+
 from OpenGL.GL import *
 
 

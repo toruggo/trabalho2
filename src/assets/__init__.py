@@ -1,6 +1,5 @@
-"""Per-asset modules: each bundles one object family's OBJ path, material
-spec, placement data, and a build(ctx) -> AssetResult function used by
-scene_builder to assemble the full scene."""
+"""Cada módulo de asset: pasta do OBJ, materiais, posicionamento e build(ctx) -> AssetResult
+usado pelo scene_builder."""
 
 from dataclasses import dataclass, field
 
@@ -9,8 +8,7 @@ from lighting import LightingRig
 
 @dataclass
 class AssetContext:
-    """Shared inputs every asset's build() needs to place itself relative to
-    the (already-loaded, recentered) temple and to wire up its lights."""
+    """Dados comuns ao build(): centro do templo já recenterado e rig de luzes."""
 
     temple_center: tuple
     extent: float
