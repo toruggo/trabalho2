@@ -5,9 +5,9 @@ from OpenGL.GL import *
 
 class Shader:
     def __init__(self, vertex_path, fragment_path):
-        with open(vertex_path) as f:
+        with open(vertex_path, encoding="utf-8") as f:
             vertex_src = f.read()
-        with open(fragment_path) as f:
+        with open(fragment_path, encoding="utf-8") as f:
             fragment_src = f.read()
 
         vert = glCreateShader(GL_VERTEX_SHADER)

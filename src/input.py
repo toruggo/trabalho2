@@ -39,10 +39,10 @@ def key_event(window, key, scancode, action, mods):
     rig = state.lighting_rig
 
     if action == glfw.PRESS:
-        # Registra a tecla como pressionada (para hold keys como Z/X, C/V, B/N)
+        # Registra a tecla como pressionada
         state.keys_pressed.add(key)
 
-        # ── Teclas de Iluminação (Toggle) ──────────────────────────────────
+        # Teclas de Iluminação (Toggle)
         if key == glfw.KEY_1:
             # Ligar ou desligar luz ambiente
             rig.ambient_on = not rig.ambient_on
@@ -53,7 +53,9 @@ def key_event(window, key, scancode, action, mods):
             new_state = not rig.lantern_lights[0].on
             for light in rig.lantern_lights:
                 light.on = new_state
-            print(f"[Luz] Lanternas Exteriores: {'LIGADAS' if new_state else 'DESLIGADAS'}")
+            print(
+                f"[Luz] Lanternas Exteriores: {'LIGADAS' if new_state else 'DESLIGADAS'}"
+            )
 
         elif key == glfw.KEY_3:
             # Ligar ou desligar dragon candle no interior
@@ -78,6 +80,10 @@ def key_event(window, key, scancode, action, mods):
             # Modo wireframe: mostra apenas arestas dos triângulos
             state.wireframe_view = not state.wireframe_view
             print(f"[Wireframe] {'ATIVADO' if state.wireframe_view else 'DESATIVADO'}")
+
+        elif key == glfw.KEY_G:
+            state.debug_glow = not state.debug_glow
+            print(f"[Debug Glow] {'ATIVADO' if state.debug_glow else 'DESATIVADO'}")
     elif action == glfw.RELEASE:
         state.keys_pressed.discard(key)
 
@@ -170,10 +176,14 @@ def process_lighting(delta_time):
     # ── Ajuste luz ambiente ───────────────────────────────────────────────────
     if glfw.KEY_Z in keys:
         # Z = diminuir intensidade (0.0 = escuro total)
-        rig.ambient_strength = max(0.0, rig.ambient_strength - AMBIENT_SPEED * delta_time)
+        rig.ambient_strength = max(
+            0.0, rig.ambient_strength - AMBIENT_SPEED * delta_time
+        )
     if glfw.KEY_X in keys:
         # X = aumentar intensidade (1.0 = máximo brilho ambiente)
-        rig.ambient_strength = min(1.0, rig.ambient_strength + AMBIENT_SPEED * delta_time)
+        rig.ambient_strength = min(
+            1.0, rig.ambient_strength + AMBIENT_SPEED * delta_time
+        )
 
     # ── Ajuste reflexão difusa ────────────────────────────────────────────────
     # Afeta como os materiais refletem luz nos pontos iluminados
@@ -192,5 +202,3 @@ def process_lighting(delta_time):
     if glfw.KEY_N in keys:
         # N = aumentar reflexão especular (3.0 = muito brilhante)
         rig.specular_mult = min(3.0, rig.specular_mult + SPECULAR_SPEED * delta_time)
-
-

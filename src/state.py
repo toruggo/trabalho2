@@ -46,3 +46,6 @@ interior_max = glm.vec3(0.0)
 
 # Tecla T: desenha a cena em modo arame, GL_LINE em vez de preenchimento GL_FILL.
 wireframe_view = False
+
+# Tecla G: mostra os quads billboard do glow em wireframe com cor sólida.
+debug_glow = False

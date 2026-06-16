@@ -178,6 +178,7 @@ def build_glow_pass() -> GlowPass:
         "cameraUp": glGetUniformLocation(prog, "cameraUp"),
         "size": glGetUniformLocation(prog, "size"),
         "color": glGetUniformLocation(prog, "color"),
+        "debugGlow": glGetUniformLocation(prog, "debugGlow"),
     }
 
     return GlowPass(shader, prog, pos_loc, vbo, locs)
@@ -232,11 +233,7 @@ def draw_skybox(pass_: SkyboxPass, view, projection):
     glDepthFunc(GL_LESS)
 
 
-def draw_glow_halos(pass_: GlowPass, view, projection, cam, lantern_lights, color, size):
-    """Para cada lanterna ligada, desenha um quad billboard com blend aditivo.
-
-    Usa vetores ortonormais da câmera para o glow.vs montar o quad de frente para a tela.
-    """
+def draw_glow_halos(pass_: GlowPass, view, projection, cam, lantern_lights, color, size, debug=False):
     pass_.shader.use()
     glUniformMatrix4fv(pass_.locs["view"], 1, GL_FALSE, glm.value_ptr(view))
     glUniformMatrix4fv(pass_.locs["projection"], 1, GL_FALSE, glm.value_ptr(projection))
@@ -247,16 +244,23 @@ def draw_glow_halos(pass_: GlowPass, view, projection, cam, lantern_lights, colo
     set3f(pass_.locs["cameraUp"], cam_up)
     glUniform3f(pass_.locs["color"], *color)
     glUniform1f(pass_.locs["size"], size)
+    glUniform1i(pass_.locs["debugGlow"], int(debug))
     glBindBuffer(GL_ARRAY_BUFFER, pass_.vbo)
     glVertexAttribPointer(pass_.pos_loc, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
 
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_ONE, GL_ONE)
     glDepthMask(GL_FALSE)
+    if debug:
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+    else:
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_ONE, GL_ONE)
     for lantern in lantern_lights:
         if lantern.on:
             set3f(pass_.locs["center"], lantern.positions[0])
             glDrawArrays(GL_TRIANGLES, 0, 6)
     glDepthMask(GL_TRUE)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    glDisable(GL_BLEND)
+    if debug:
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+    else:
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glDisable(GL_BLEND)

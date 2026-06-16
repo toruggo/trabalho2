@@ -59,9 +59,6 @@ class DriftBehavior:
         dist = glm.length(self.offset)
         if dist > self.radius and dist > 0.0:
             normal = self.offset / dist
-            # Recoloca o ponto exatamente na casca antes de refletir. Sem isso,
-            # um quase tangente pode ficar alternando fora e dentro do raio a
-            # cada frame e a lanterna parece travada.
             self.offset = normal * self.radius
             self.dir = glm.reflect(self.dir, normal)
         self._apply()
