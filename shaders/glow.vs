@@ -1,5 +1,4 @@
-// Vertex shader do halo: quad billboard voltado para a câmera, centrado na lanterna.
-// cameraRight e cameraUp vêm do Python para o quad sempre olhar a tela.
+// cameraRight e cameraUp orientam o quad para sempre encarar a câmera (billboard).
 
 attribute vec2 position;
 
@@ -13,9 +12,7 @@ uniform float size;
 varying vec2 localPos;
 
 void main() {
-    // Posição no mundo: centro mais deslocamento no plano do billboard.
     vec3 worldPos = center + (position.x * size) * cameraRight + (position.y * size) * cameraUp;
-    gl_Position    = projection * view * vec4(worldPos, 1.0);
-    // Passa UV local para o fragment fazer queda radial do brilho.
-    localPos       = position;
+    gl_Position = projection * view * vec4(worldPos, 1.0);
+    localPos = position;
 }

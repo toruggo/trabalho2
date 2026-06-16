@@ -1,5 +1,3 @@
-// Vértice principal: posição e normais no mundo; varyings para o shader de fragmento.
-
 attribute vec3 position;
 attribute vec2 texture_coord;
 attribute vec3 normal;
