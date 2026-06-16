@@ -17,7 +17,7 @@ from shader_s import Shader
 import geometry
 from lighting import NUM_LANTERNS, LightingRig
 
-# Cubo unitário com 36 vértices em triângulos. Malha do skybox em cubemap.
+# Cubo unitário com 36 vértices em triângulos (malha do skybox em cubemap)
 CUBE_VERTS = np.array(
     [
         -1, 1, -1, -1, -1, -1, 1, -1, -1, 1, -1, -1, 1, 1, -1, -1, 1, -1,

@@ -8,8 +8,7 @@ import geometry
 import matrizes
 from lighting import Light
 
-# Material padrão quando o .obj não traz spec; Ka = Kd para o slider de ambiente
-# ainda mudar algo visível entre 0 e 1.
+# Material padrão quando o .obj não traz spec (Ka = Kd para o slider de ambiente)
 DEFAULT_MATERIAL = dict(
     Ka=(0.7, 0.7, 0.7), Kd=(0.7, 0.7, 0.7), Ks=(0.1, 0.1, 0.1), shininess=8.0
 )

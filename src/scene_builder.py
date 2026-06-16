@@ -61,8 +61,7 @@ def build_scene(rig: LightingRig) -> SceneData:
     objects = temple_objects + [obj for r in results for obj in r.objects]
     behaviors = [b for r in results for b in r.behaviors]
 
-    # Objetos translúcidos (ex.: papel de lanterna): passo depois dos opacos,
-    # com blend e sem escrever profundidade.
+    # Objetos translúcidos (ex.: papel de lanterna): passo depois dos opacos, com blend e sem escrever profundidade
     opaque_objects = [o for o in objects if o.alpha >= 1.0]
     translucent_objects = [o for o in objects if o.alpha < 1.0]
 
